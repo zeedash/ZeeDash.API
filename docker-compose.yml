@@ -1,0 +1,102 @@
+version: "3.7"
+
+services:
+  # -----------------------------------------------------------------------------------
+  # ----------------------------------- POSTGRESQL ------------------------------------
+  # -----------------------------------------------------------------------------------
+  postgres:
+    # Docker Hub image
+    image: postgres:14
+
+    # Provide passwords and other environment variables to container
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zeedash}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dont-use-it-in-production}
+      POSTGRES_DB: ${POSTGRES_DB:-zeedash.api}
+      PGDATA: /data/postgres
+
+    # Persistent postgres database data.
+    volumes:
+      - type: volume
+        source: postgres-volume
+        target: /data/postgres
+
+    # Forward PG port
+    ports:
+      - "5432:5432"
+
+    # Network linked to container
+    networks:
+      - zeedash-api-network
+    
+    # Restart Policy
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------------------
+  # ------------------------------------ PG ADMIN -------------------------------------
+  # -----------------------------------------------------------------------------------
+  pgadmin:
+    # Docker Hub image
+    image: dpage/pgadmin4:latest
+
+    # Provide passwords and other environment variables to container
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-dev@c2s.fr}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+
+    # Persistent pgadmin data.
+    volumes:
+      - type: volume
+        source: pgadmin-volume
+        target: /var/lib/pgadmin
+
+    # Forward PG Admin port
+    ports:
+      - "${PGADMIN_PORT:-7004}:80"
+      
+    # Network linked to container
+    networks:
+      - zeedash-api-network
+    
+    # Restart Policy
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------------------
+  # ------------------------------------- CACHING -------------------------------------
+  # -----------------------------------------------------------------------------------
+  # Serveur de cache
+  redis:
+    # Docker Hub image
+    image: redis:6.2.1-alpine
+    
+    # Persistent postgres database data.
+    volumes:
+      - type: volume
+        source: redis-volume
+        target: /data/
+
+    # Forward Redis port
+    ports:
+      - 6379:6379
+
+    # Network linked to container
+    networks:
+      - zeedash-api-network
+    
+    # Restart Policy
+    restart: unless-stopped
+
+# -----------------------------------------------------------------------------------
+# ------------------------------------- NETWORK -------------------------------------
+# -----------------------------------------------------------------------------------
+networks:
+  zeedash-api-network:
+  
+# -----------------------------------------------------------------------------------
+# ------------------------------------- VOLUMES -------------------------------------
+# -----------------------------------------------------------------------------------
+volumes:
+  postgres-volume:
+  pgadmin-volume:
+  redis-volume:
