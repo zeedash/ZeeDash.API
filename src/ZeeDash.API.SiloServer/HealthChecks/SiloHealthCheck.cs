@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Server.HealthChecks;
+namespace ZeeDash.API.SiloServer.HealthChecks;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Orleans.Runtime;

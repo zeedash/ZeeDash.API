@@ -1,7 +1,8 @@
-namespace ZeeDash.API.Server;
+namespace ZeeDash.API.SiloServer;
 
 using System.Diagnostics;
-using OpenTelemetry.Exporter;
+
+//using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using ZeeDash.API.Abstractions.Constants;
@@ -18,10 +19,12 @@ public static class TracerProviderBuilderExtensions {
                     options.Enrich = Enrich;
                     options.RecordException = true;
                 })
-            .AddIf(
-                 webHostEnvironment.IsDevelopment(),
-                 x => x.AddConsoleExporter(
-                     options => options.Targets = ConsoleExporterOutputTargets.Console | ConsoleExporterOutputTargets.Debug));
+            //.AddIf(
+            //     webHostEnvironment.IsDevelopment(),
+            //     x => x.AddConsoleExporter(
+            //         options => options.Targets = ConsoleExporterOutputTargets.Console | ConsoleExporterOutputTargets.Debug)
+            //    )
+            ;
 
     public static TracerProviderBuilder AddIf(
         this TracerProviderBuilder builder,

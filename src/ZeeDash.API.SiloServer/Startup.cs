@@ -1,7 +1,10 @@
-namespace ZeeDash.API.Server;
+namespace ZeeDash.API.SiloServer;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using ZeeDash.API.Server.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
+using ZeeDash.API.Grains.Domains.AccessControl;
+using ZeeDash.API.Grains.Services;
+using ZeeDash.API.SiloServer.HealthChecks;
 
 #pragma warning disable CA1724 // The type name conflicts with the namespace name 'Orleans.Runtime.Startup'
 
@@ -25,6 +28,8 @@ public class Startup
 
     public virtual void ConfigureServices(IServiceCollection services) =>
         services
+            .AddScoped<IManageableService, ManageableService>()
+            .AddScoped<IAccessControlService, AccessControlService>()
             .AddRouting(options => options.LowercaseUrls = true)
             .AddOpenTelemetryTracing(builder => builder.AddCustomTracing(this.webHostEnvironment))
             .AddHealthChecks()

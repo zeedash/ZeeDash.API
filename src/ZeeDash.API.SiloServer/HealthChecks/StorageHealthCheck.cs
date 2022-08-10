@@ -1,19 +1,19 @@
-namespace ZeeDash.API.Server.HealthChecks;
+namespace ZeeDash.API.SiloServer.HealthChecks;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Orleans;
 using ZeeDash.API.Abstractions.Grains.HealthChecks;
 
 /// <summary>
-/// Verifies connectivity to a <see cref="ILocalHealthCheckGrain"/> activation. As this grain is a
-/// stateless worker, validation always occurs in the silo where the health check is issued.
+/// Verifies whether the <see cref="IStorageHealthCheckGrain"/> can read, write and clear state using the default
+/// storage provider.
 /// </summary>
-public class GrainHealthCheck : IHealthCheck {
-    private const string FailedMessage = "Failed local health check.";
+public class StorageHealthCheck : IHealthCheck {
+    private const string FailedMessage = "Failed storage health check.";
     private readonly IClusterClient client;
-    private readonly ILogger<GrainHealthCheck> logger;
+    private readonly ILogger<StorageHealthCheck> logger;
 
-    public GrainHealthCheck(IClusterClient client, ILogger<GrainHealthCheck> logger) {
+    public StorageHealthCheck(IClusterClient client, ILogger<StorageHealthCheck> logger) {
         this.client = client;
         this.logger = logger;
     }
@@ -22,14 +22,16 @@ public class GrainHealthCheck : IHealthCheck {
         HealthCheckContext context,
         CancellationToken cancellationToken = default) {
         try {
-            await this.client.GetGrain<ILocalHealthCheckGrain>(Guid.Empty).CheckAsync().ConfigureAwait(false);
+            // Call this grain with a random key each time. This grain then deactivates itself, so there is a new
+            // instance created and destroyed each time.
+            await this.client.GetGrain<IStorageHealthCheckGrain>(Guid.NewGuid()).CheckAsync().ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // Do not catch general exception types
         catch (Exception exception)
 #pragma warning restore CA1031 // Do not catch general exception types
         {
 #pragma warning disable CA1303 // Do not pass literals as localized parameters
-            this.logger.FailedLocalHealthCheck(exception);
+            this.logger.FailedStorageHealthCheck(exception);
 #pragma warning restore CA1303 // Do not pass literals as localized parameters
             return HealthCheckResult.Unhealthy(FailedMessage, exception);
         }

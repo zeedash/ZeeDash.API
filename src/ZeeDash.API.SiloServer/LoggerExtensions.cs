@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Server;
+namespace ZeeDash.API.SiloServer;
 
 /// <summary>
 /// <see cref="ILogger"/> extension methods. Helps log messages using strongly typing and source generators.

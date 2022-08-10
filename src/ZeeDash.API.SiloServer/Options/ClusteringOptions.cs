@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Server.Options;
+namespace ZeeDash.API.SiloServer.Options;
 
 public class ClusteringOptions {
     public string ConnectionString { get; set; } = default!;

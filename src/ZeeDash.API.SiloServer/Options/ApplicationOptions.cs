@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Server.Options;
+namespace ZeeDash.API.SiloServer.Options;
 
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Orleans.Configuration;

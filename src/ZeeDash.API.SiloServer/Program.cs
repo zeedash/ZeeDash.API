@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Server;
+namespace ZeeDash.API.SiloServer;
 
 using System.Net;
 using System.Net.Sockets;
@@ -12,7 +12,7 @@ using Orleans.Runtime;
 using Orleans.Statistics;
 using ZeeDash.API.Abstractions.Constants;
 using ZeeDash.API.Grains;
-using ZeeDash.API.Server.Options;
+using ZeeDash.API.SiloServer.Options;
 
 #pragma warning disable RCS1102 // Make class static.
 
@@ -23,7 +23,8 @@ public class Program
         IHost? host = null;
 
         try {
-            host = CreateHostBuilder(args).Build();
+            var hostBuilder = CreateHostBuilder(args);
+            host = hostBuilder.Build();
 
             host.LogApplicationStarted();
             await host.RunAsync().ConfigureAwait(false);
@@ -59,6 +60,7 @@ public class Program
                 })
             .UseOrleans(ConfigureSiloBuilder)
             .ConfigureWebHost(ConfigureWebHostBuilder)
+            .ConfigureLogging(loggingBuilder => loggingBuilder.AddConsole())
             .UseConsoleLifetime();
 
     private static void ConfigureSiloBuilder(

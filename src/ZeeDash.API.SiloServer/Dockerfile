@@ -1,7 +1,7 @@
 # To build this Dockerfile, run the following command from the solution directory:
-# docker build --file "src\ZeeDash.API.Server\Dockerfile" --tag orleans .
+# docker build --file "src\ZeeDash.API.SiloServer\Dockerfile" --tag orleans .
 # Or you can use the experimental buildx command for a better experience:
-# docker buildx build --progress plain --file "src\ZeeDash.API.Server\Dockerfile" --tag orleans .
+# docker buildx build --progress plain --file "src\ZeeDash.API.SiloServer\Dockerfile" --tag orleans .
 
 # Base image used by Visual Studio at development time
 # (See https://docs.microsoft.com/en-us/visualstudio/containers/container-msbuild-properties)
@@ -38,8 +38,8 @@ COPY "ZeeDash.API.sln" "."
 COPY "src/ZeeDash.API.Abstractions/*.csproj" "src/ZeeDash.API.Abstractions/"
 COPY "src/ZeeDash.API.Client/*.csproj" "src/ZeeDash.API.Client/"
 COPY "src/ZeeDash.API.Grains/*.csproj" "src/ZeeDash.API.Grains/"
-COPY "src/ZeeDash.API.Server/*.csproj" "src/ZeeDash.API.Server/"
-COPY "tests/ZeeDash.API.Server.IntegrationTest/*.csproj" "tests/ZeeDash.API.Server.IntegrationTest/"
+COPY "src/ZeeDash.API.SiloServer/*.csproj" "src/ZeeDash.API.SiloServer/"
+COPY "tests/ZeeDash.API.SiloServer.IntegrationTest/*.csproj" "tests/ZeeDash.API.SiloServer.IntegrationTest/"
 # Run the restore and cache the packages on the host for faster subsequent builds.
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet restore
@@ -50,10 +50,10 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet build --configuration $Configuration --no-restore
 RUN dotnet test --configuration $Configuration --no-build
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish "src/ZeeDash.API.Server/ZeeDash.API.Server.csproj" --configuration $Configuration --no-build --output /app
+    dotnet publish "src/ZeeDash.API.SiloServer/ZeeDash.API.SiloServer.csproj" --configuration $Configuration --no-build --output /app
 
 # Runtime image used to run the application
 FROM base AS runtime
 WORKDIR /app
 COPY --from=sdk /app .
-ENTRYPOINT ["dotnet", "ZeeDash.API.Server.dll"]
+ENTRYPOINT ["dotnet", "ZeeDash.API.SiloServer.dll"]

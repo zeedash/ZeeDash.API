@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Server;
+namespace ZeeDash.API.SiloServer;
 
 using System.Reflection;
 
