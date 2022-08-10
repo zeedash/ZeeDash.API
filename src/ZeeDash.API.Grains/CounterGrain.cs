@@ -1,7 +1,7 @@
 namespace ZeeDash.API.Grains;
 
 using Orleans;
-using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Grains.Legacy;
 
 public class CounterGrain : Grain<long>, ICounterGrain {
 

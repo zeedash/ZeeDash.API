@@ -2,7 +2,7 @@ namespace ZeeDash.API.Grains;
 
 using Orleans;
 using Orleans.Concurrency;
-using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Grains.Legacy;
 
 /// <summary>
 /// An implementation of the 'Reduce' pattern (See https://github.com/OrleansContrib/DesignPatterns/blob/master/Reduce.md).

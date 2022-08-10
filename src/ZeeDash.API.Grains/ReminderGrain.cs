@@ -3,7 +3,7 @@ namespace ZeeDash.API.Grains;
 using Orleans;
 using Orleans.Runtime;
 using ZeeDash.API.Abstractions.Constants;
-using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Grains.Legacy;
 
 public class ReminderGrain : Grain, IReminderGrain, IRemindable {
     private const string ReminderName = "SomeReminder";

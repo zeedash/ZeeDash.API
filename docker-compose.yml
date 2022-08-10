@@ -1,6 +1,102 @@
 version: "3.7"
 
+# -----------------------------------------------------------------------------------
+# ------------------------------------- NETWORK -------------------------------------
+# -----------------------------------------------------------------------------------
+networks:
+  zeedash-api-network:
+  
+# -----------------------------------------------------------------------------------
+# ------------------------------------- VOLUMES -------------------------------------
+# -----------------------------------------------------------------------------------
+volumes:
+  mongodb-volume:
+  postgres-volume:
+  #pgadmin-volume:
+  redis-volume:
+  redisinsight-volume:
+  #neo4j-data-volume:
+  #neo4j-logs-volume:
+  #neo4j-import-volume:
+  #neo4j-plugins-volume:
+
 services:
+  ## -----------------------------------------------------------------------------------
+  ## ----------------------------------- DATABASE -------------------------------------
+  ## -----------------------------------------------------------------------------------
+  mongodb:
+    # Docker Hub image
+    image: mongo:5.0
+    
+    # Provide passwords and other environment variables to container
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER:-zeedash}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-dont-use-it-in-production}
+      
+    # Forward MongoDB port
+    ports:
+      - 27017:27017
+      
+    # Persistent storage for database data.
+    volumes:
+      - type: volume
+        source: mongodb-volume
+        target: /data/db
+
+    # Network linked to container
+    networks:
+      - zeedash-api-network
+    
+    # Restart Policy
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------------------
+  # ---------------------------------- CACHE & GRAPH ----------------------------------
+  # -----------------------------------------------------------------------------------
+  # SCache & GrapDB server
+  redis:
+    # Docker Hub image
+    image: redis/redis-stack-server:latest
+    
+    # Persistent postgres database data.
+    volumes:
+      - type: volume
+        source: redis-volume
+        target: /data
+
+    # Forward Redis port
+    ports:
+      - 6379:6379
+
+    # Network linked to container
+    networks:
+      - zeedash-api-network
+    
+    # Restart Policy
+    restart: unless-stopped
+    
+  # Redis Insights
+  redisinsight:
+    # Docker Hub image
+    image: redislabs/redisinsight:latest
+    
+    # Persistent postgres database data.
+    volumes:
+      - type: volume
+        source: redisinsight-volume
+        target: /db
+
+    # Forward Redis port
+    ports:
+      - 8001:8001
+
+    # Network linked to container
+    networks:
+      - zeedash-api-network
+    
+    # Restart Policy
+    restart: unless-stopped
+
   # -----------------------------------------------------------------------------------
   # ----------------------------------- POSTGRESQL ------------------------------------
   # -----------------------------------------------------------------------------------
@@ -32,71 +128,71 @@ services:
     # Restart Policy
     restart: unless-stopped
 
-  # -----------------------------------------------------------------------------------
-  # ------------------------------------ PG ADMIN -------------------------------------
-  # -----------------------------------------------------------------------------------
-  pgadmin:
-    # Docker Hub image
-    image: dpage/pgadmin4:latest
+  ## -----------------------------------------------------------------------------------
+  ## ------------------------------------ PG ADMIN -------------------------------------
+  ## -----------------------------------------------------------------------------------
+  #pgadmin:
+  #  # Docker Hub image
+  #  image: dpage/pgadmin4:latest
 
-    # Provide passwords and other environment variables to container
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-dev@c2s.fr}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+  #  # Provide passwords and other environment variables to container
+  #  environment:
+  #    PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-dev@c2s.fr}
+  #    PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+  #    PGADMIN_CONFIG_SERVER_MODE: 'False'
 
-    # Persistent pgadmin data.
-    volumes:
-      - type: volume
-        source: pgadmin-volume
-        target: /var/lib/pgadmin
+  #  # Persistent pgadmin data.
+  #  volumes:
+  #    - type: volume
+  #      source: pgadmin-volume
+  #      target: /var/lib/pgadmin
 
-    # Forward PG Admin port
-    ports:
-      - "${PGADMIN_PORT:-7004}:80"
+  #  # Forward PG Admin port
+  #  ports:
+  #    - "${PGADMIN_PORT:-7004}:80"
       
-    # Network linked to container
-    networks:
-      - zeedash-api-network
+  #  # Network linked to container
+  #  networks:
+  #    - zeedash-api-network
     
-    # Restart Policy
-    restart: unless-stopped
+  #  # Restart Policy
+  #  restart: unless-stopped
 
-  # -----------------------------------------------------------------------------------
-  # ------------------------------------- CACHING -------------------------------------
-  # -----------------------------------------------------------------------------------
-  # Serveur de cache
-  redis:
-    # Docker Hub image
-    image: redis:6.2.1-alpine
+  ## -----------------------------------------------------------------------------------
+  ## -------------------------------------- NEO4J --------------------------------------
+  ## -----------------------------------------------------------------------------------
+  ## Serveur de cache
+  #neo4j:
+  #  # Docker Hub image
+  #  image: neo4j:4.4.9-community
+
+  #  # Provide passwords and other environment variables to container
+  #  environment:
+  #    NEO4J_AUTH: neo4j/changeme
     
-    # Persistent postgres database data.
-    volumes:
-      - type: volume
-        source: redis-volume
-        target: /data/
+  #  # Persistent Neo4J database data.
+  #  volumes:
+  #    - type: volume
+  #      source: neo4j-data-volume
+  #      target: /data
+  #    - type: volume
+  #      source: neo4j-logs-volume
+  #      target: /logs
+  #    - type: volume
+  #      source: neo4j-import-volume
+  #      target: /var/lib/neo4j/import
+  #    - type: volume
+  #      source: neo4j-plugins-volume
+  #      target: /plugins
 
-    # Forward Redis port
-    ports:
-      - 6379:6379
+  #  # Forward Neo4J port
+  #  ports:
+  #    - 7474:7474
+  #    - 7687:7687
 
-    # Network linked to container
-    networks:
-      - zeedash-api-network
+  #  # Network linked to container
+  #  networks:
+  #    - zeedash-api-network
     
-    # Restart Policy
-    restart: unless-stopped
-
-# -----------------------------------------------------------------------------------
-# ------------------------------------- NETWORK -------------------------------------
-# -----------------------------------------------------------------------------------
-networks:
-  zeedash-api-network:
-  
-# -----------------------------------------------------------------------------------
-# ------------------------------------- VOLUMES -------------------------------------
-# -----------------------------------------------------------------------------------
-volumes:
-  postgres-volume:
-  pgadmin-volume:
-  redis-volume:
+  #  # Restart Policy
+  #  restart: unless-stopped

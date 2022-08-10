@@ -1,7 +1,7 @@
 namespace ZeeDash.API.Abstractions.Grains;
 
 using System.Threading.Tasks;
-using ZeeDash.API.Abstractions.Domains.AccessControl;
+using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 
 /// <summary>

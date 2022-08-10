@@ -1,5 +1,6 @@
 namespace ZeeDash.API.Client;
 
+using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Orleans;
 using Orleans.Configuration;
@@ -7,7 +8,10 @@ using Orleans.Hosting;
 using Orleans.Runtime;
 using Orleans.Streams;
 using ZeeDash.API.Abstractions.Constants;
-using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Domains.IAM;
+using ZeeDash.API.Abstractions.Domains.Identity;
+using ZeeDash.API.Abstractions.Domains.Tenants;
+using ZeeDash.API.Abstractions.Grains.Legacy;
 
 public static class Program {
 
@@ -18,6 +22,86 @@ public static class Program {
 
             // Set a trace ID, so that requests can be identified.
             RequestContext.Set("TraceId", Guid.NewGuid());
+
+            var tenantId = new TenantId();// "zrn:zeedash:tenant/01G88YKQZVA87R0HKNC8J3ZDR0");
+            var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tenantId.Value);
+            var readerId = new UserId("zrn:zeedash:user/01G88YV82PHHDBGTR4T00MNB2H");
+            var ownerId = new UserId("zrn:zeedash:user/01G8TJJ5F6FSD2TXZQAWN2TBMB");
+            await tenantGrain.CreateAsync("Salut ma poule !", TenantTypes.Personal, ownerId);
+            await tenantGrain.SetReaderAsync(readerId);
+
+            var tenants = Enumerable.Range(0, 100)
+                .Select(i => new TenantId())
+                .ToDictionary(
+                    k => k.Value,
+                    v => Enumerable.Range(0, 100)
+                            .Select(i => new {
+                                UserId = new UserId(),
+                                Level = i % 20 == 0 ? AccessLevel.Owner : AccessLevel.Contributor
+                            })
+                );
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var tasks = tenants.SelectMany(tKvp => {
+                var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tKvp.Key);
+                return tKvp.Value.Select(v => v.Level == AccessLevel.Owner ? tenantGrain.SetOwnerAsync(v.UserId) : tenantGrain.SetContributorAsync(v.UserId));
+            }).ToList();
+
+            //var evenTasks = new Task[100 * 100];
+            //for (var k = 0; k < tenants.Keys.Count; k++) {
+            //    var client = tenants[tenants.Keys.ElementAt(k)];
+            //    for (var i = 0; i < 100; i++) {
+            //        evenTasks[k + (i * 100)] = tenantGrain.SetOwnerAsync(new UserId());
+            //    }
+            //}
+
+            try {
+                await Task.WhenAll(tasks);
+            } catch (Exception ex) {
+                Console.WriteLine(ex.ToString());
+#pragma warning disable IDE0120 // Simplifier l'expression LINQ
+                var successfull = tasks.Where(t => t.IsCompletedSuccessfully).Count();
+                var completed = tasks.Where(t => t.IsCompleted).Count();
+                var faulted = tasks.Where(t => t.IsFaulted).Count();
+                var canceled = tasks.Where(t => t.IsCanceled).Count();
+#pragma warning restore IDE0120 // Simplifier l'expression LINQ
+                Console.WriteLine($"{successfull} / {completed} / {faulted} / {canceled}");
+            } finally { sw.Stop(); }
+
+            Console.WriteLine(sw.Elapsed.ToString());
+
+            var tenants2 = Enumerable.Range(0, 1000)
+                .Select(i => new TenantId())
+                .ToDictionary(
+                    k => k,
+                    v => Enumerable.Range(0, 10)
+                            .Select(i => new {
+                                UserId = new UserId(),
+                                Level = i % 9 == 0 ? AccessLevel.Owner : AccessLevel.Contributor
+                            })
+                );
+
+            sw.Reset();
+            sw.Start();
+            var tasks2 = tenants2.SelectMany(tKvp => {
+                var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tKvp.Key.Value);
+                return tKvp.Value.Select(v => v.Level == AccessLevel.Owner ? tenantGrain.SetOwnerAsync(v.UserId) : tenantGrain.SetContributorAsync(v.UserId));
+            }).ToArray();
+            try {
+                await Task.WhenAll(tasks2);
+            } catch (Exception ex) {
+                Console.WriteLine(ex.ToString());
+#pragma warning disable IDE0120 // Simplifier l'expression LINQ
+                var successfull = tasks2.Where(t => t.IsCompletedSuccessfully).Count();
+                var completed = tasks2.Where(t => t.IsCompleted).Count();
+                var faulted = tasks2.Where(t => t.IsFaulted).Count();
+                var canceled = tasks2.Where(t => t.IsCanceled).Count();
+#pragma warning restore IDE0120 // Simplifier l'expression LINQ
+                Console.WriteLine($"{successfull} / {completed} / {faulted} / {canceled}");
+            } finally { sw.Stop(); }
+
+            Console.WriteLine(sw.Elapsed.ToString());
 
             var reminderGrain = clusterClient.GetGrain<IReminderGrain>(Guid.Empty);
             await reminderGrain.SetReminderAsync("Don't forget to say hello!").ConfigureAwait(false);

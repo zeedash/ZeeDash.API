@@ -19,11 +19,6 @@ public static class TracerProviderBuilderExtensions {
                     options.Enrich = Enrich;
                     options.RecordException = true;
                 })
-            //.AddIf(
-            //     webHostEnvironment.IsDevelopment(),
-            //     x => x.AddConsoleExporter(
-            //         options => options.Targets = ConsoleExporterOutputTargets.Console | ConsoleExporterOutputTargets.Debug)
-            //    )
             ;
 
     public static TracerProviderBuilder AddIf(
