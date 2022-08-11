@@ -53,7 +53,9 @@ public class Identity
 
     #region Overides
 
-    public override string ToString() => this.Value;
+    public override string ToString() {
+        return this.Value;
+    }
 
     #endregion Overides
 }

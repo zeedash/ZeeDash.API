@@ -3,24 +3,22 @@ namespace ZeeDash.API.Grains.Domains.Tenants;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Orleans;
-using ZeeDash.API.Abstractions.Domains.IAM;
+using ZeeDash.API.Abstractions.Constants;
 using ZeeDash.API.Abstractions.Domains.Dashboards;
+using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
-using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Grains.Common;
 using ZeeDash.API.Grains.Domains.AccessControl;
-using Orleans.Runtime;
+using ZeeDash.API.Grains.Domains.AccessControl.Events;
 using ZeeDash.API.Grains.Services;
 
 public partial class TenantGrain
-    : Grain
+    : Grain<TenantState>
     , ITenantGrain
     , IIncomingGrainCallFilter {
 
     #region Private Fields
-
-    private readonly IPersistentState<TenantState> tenant;
-    private readonly IPersistentState<Membership> membership;
 
     private readonly IAccessControlService accessControlService;
     private readonly IManageableService manageableService;
@@ -30,12 +28,8 @@ public partial class TenantGrain
     #region Ctor.Dtor
 
     public TenantGrain(
-        [PersistentState("Tenant")] IPersistentState<TenantState> tenant,
-        [PersistentState("TenantMembership")] IPersistentState<Membership> membership,
         IAccessControlService accessControlService,
         IManageableService manageableService) {
-        this.tenant = tenant;
-        this.membership = membership;
         this.accessControlService = accessControlService;
         this.manageableService = manageableService;
     }
@@ -46,12 +40,12 @@ public partial class TenantGrain
 
     private Tenant MapStateToTenant() {
         return new Tenant {
-            Id = new TenantId(this.IdentityString),
-            Name = this.tenant.State.Name,
-            Type = this.tenant.State.Type,
-            Owners = this.membership.State.Members.Where(m => m.Level == AccessLevel.Owner).Select(m => m.UserId).ToList(),
-            Contributors = this.membership.State.Members.Where(m => m.Level == AccessLevel.Contributor).Select(m => m.UserId).ToList(),
-            Readers = this.membership.State.Members.Where(m => m.Level == AccessLevel.Reader).Select(m => m.UserId).ToList(),
+            Id = this.State.Id,
+            Name = this.State.Name,
+            Type = this.State.Type,
+            Owners = this.State.Members.Where(m => m.Level == AccessLevel.Owner).Select(m => m.UserId).ToList(),
+            Contributors = this.State.Members.Where(m => m.Level == AccessLevel.Contributor).Select(m => m.UserId).ToList(),
+            Readers = this.State.Members.Where(m => m.Level == AccessLevel.Reader).Select(m => m.UserId).ToList(),
         };
     }
 
@@ -63,10 +57,8 @@ public partial class TenantGrain
         return base.OnActivateAsync();
     }
 
-#pragma warning disable VSTHRD200 // Use "Async" suffix for async methods
-
     async Task IIncomingGrainCallFilter.Invoke(IIncomingGrainCallContext context) {
-        var isCreated = this.tenant.State.IsCreated;
+        var isCreated = this.State.IsCreated;
         if (!string.Equals(context.InterfaceMethod.Name, nameof(ITenantGrain.CreateAsync), StringComparison.Ordinal)) {
             if (!isCreated) {
                 throw new UnauthorizedAccessException();
@@ -77,18 +69,20 @@ public partial class TenantGrain
             }
         }
 
+        if (this.State.Id.IsEmpty) {
+            this.State.Id = TenantId.Parse(this.IdentityString);
+        }
+
         await context.Invoke();
     }
 
-#pragma warning restore VSTHRD200 // Use "Async" suffix for async methods
-
     #endregion IIncomingGrainCallFilter
 
-    #region IManageable
+    #region IGrainMembership
 
     /// <inheritdoc/>
-    Task<List<Member>> IManageableGrain.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
-        var query = this.membership.State.Members.AsQueryable();
+    Task<List<Member>> IGrainMembership.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
+        var query = this.State.Members.AsQueryable();
 
         if (level is not null) {
             query = query.Where(m => m.Level == level.Value);
@@ -102,102 +96,94 @@ public partial class TenantGrain
     }
 
     /// <inheritdoc/>
-    async Task<Member> IManageableGrain.SetContributorAsync(UserId userId, AccessLevelKind? kind) {
-        var level = AccessLevel.Contributor;
-        // Note : An indirect access level is not possible on a tenant (since it's the highest element in struture tree)
-        var member = this.manageableService.SetMember(this.membership.State, userId, level, AccessLevelKind.Direct);
+    Task<Member> IGrainMembership.SetContributorAsync(UserId userId) {
+        return this.SetMembershipAsync(userId, AccessLevel.Contributor);
+    }
 
-        await this.accessControlService.AddContributorMembershipAsync(this.IdentityString, userId, level);
-        await this.membership.WriteStateAsync();
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership.SetOwnerAsync(UserId userId) {
+        return this.SetMembershipAsync(userId, AccessLevel.Owner);
+    }
+
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership.SetReaderAsync(UserId userId) {
+        return this.SetMembershipAsync(userId, AccessLevel.Reader);
+    }
+
+    /// <inheritdoc/>
+    async Task<Member> IGrainMembership.RemoveMemberAsync(UserId userId) {
+        var member = this.manageableService.RemoveMember(this.State, userId);
+
+        var membershipId = new MembershipViewId(this.State.Id);
+        await this.accessControlService.RemoveMembershipAsync(membershipId, userId);
+        await this.WriteStateAsync();
         await this.RefreshAccessControlViewAsync();
-
-        ////var setAsContributorOfBusinessUnitTasks = this.tenant.State.BusinessUnits
-        ////    .Select(businessUnitId => this.GrainFactory.GetGrain<IBusinessUnitGrain>(businessUnitId.ToString()))
-        ////    .Select(bu => bu.SetContributorAsync(userId, AccessLevelKind.Inherited));
-        ////await Task.WhenAll(setAsContributorOfBusinessUnitTasks);
-
-        ////var setAsContributorOfDashboardTasks = this.State.Dashboards
-        ////    .Select(dashboardId => this.GrainFactory.GetGrain<IDashboardGrain>(dashboardId.ToString()))
-        ////    .Select(dashboard => dashboard.SetContributorAsync(userId, AccessLevelKind.Inherited));
-        ////await Task.WhenAll(setAsContributorOfDashboardTasks);
 
         return member;
     }
 
-#pragma warning disable CA1822 // Marquer les membres comme étant static
+    /// <summary>
+    /// Apply membership to a user on the tenant
+    /// </summary>
+    /// <param name="userId">The userId to manage</param>
+    /// <param name="level">The level of the user on the tenant</param>
+    /// <returns>The user as member</returns>
+    private async Task<Member> SetMembershipAsync(UserId userId, AccessLevel level) {
+        var member = this.manageableService.SetMember(this.State, userId, level, AccessLevelKind.Direct);
+
+        var membershipId = new MembershipViewId(this.State.Id);
+        switch (level) {
+            case AccessLevel.Reader:
+                await this.accessControlService.AddReaderMembershipAsync(membershipId, userId, level);
+                break;
+
+            case AccessLevel.Contributor:
+                await this.accessControlService.AddContributorMembershipAsync(membershipId, userId, level);
+                break;
+
+            case AccessLevel.Owner:
+                await this.accessControlService.AddOwnerMembershipAsync(membershipId, userId, level);
+                break;
+
+            case AccessLevel.None:
+            default:
+                break;
+        }
+
+        await this.WriteStateAsync();
+        await this.RefreshAccessControlViewAsync();
+
+        await this.GetStreamProvider(StreamProviderName.Membership)
+            .GetStream<OnTenantUpdate>(this.State.Id.AsGuid(), StreamName.Membership.OnTenantUpdate)
+            .OnNextAsync(new OnTenantUpdate(this.State.Id, userId, level));
+
+        return member;
+    }
 
     private async Task RefreshAccessControlViewAsync() {
-        //var membership = this.GrainFactory.GetGrain<ITenantMembershipGrain>();
-        //await membership.RefreshViewAsync();
+        var membershipId = new MembershipViewId(this.State.Id);
+        var membership = this.GrainFactory.GetGrain<ITenantMembershipViewGrain>(membershipId.Value);
+        await membership.RefreshAsync();
         await Task.CompletedTask;
     }
 
-#pragma warning restore CA1822 // Marquer les membres comme étant static
-
-    /// <inheritdoc/>
-    async Task<Member> IManageableGrain.SetOwnerAsync(UserId userId, AccessLevelKind? kind) {
-        var level = AccessLevel.Owner;
-        // Note : An indirect access level is not possible on a tenant (since it's the highest element in struture tree)
-        var member = this.manageableService.SetMember(this.membership.State, userId, level, AccessLevelKind.Direct);
-
-        await this.accessControlService.AddOwnerMembershipAsync(this.IdentityString, userId, level);
-        await this.membership.WriteStateAsync();
-        await this.RefreshAccessControlViewAsync();
-
-        //var setAsOwnerOfBusinessUnitTasks = this.membership.State.BusinessUnits
-        //    .Select(businessUnitId => this.GrainFactory.GetGrain<IBusinessUnitGrain>(businessUnitId.ToString()))
-        //    .Select(bu => bu.SetOwnerAsync(userId, AccessLevelKind.Inherited));
-        //await Task.WhenAll(setAsOwnerOfBusinessUnitTasks);
-
-        //var setAsOwnerOfDashboardTasks = this.membership.State.Dashboards
-        //    .Select(dashboardId => this.GrainFactory.GetGrain<IDashboardGrain>(dashboardId.ToString()))
-        //    .Select(dashboard => dashboard.SetOwnerAsync(userId, AccessLevelKind.Inherited));
-        //await Task.WhenAll(setAsOwnerOfDashboardTasks);
-
-        return member;
-    }
-
-    /// <inheritdoc/>
-    async Task<Member> IManageableGrain.SetReaderAsync(UserId userId, AccessLevelKind? kind) {
-        var level = AccessLevel.Reader;
-        // Note : An indirect access level is not possible on a tenant (since it's the highest element in struture tree)
-        var member = this.manageableService.SetMember(this.membership.State, userId, level, AccessLevelKind.Direct);
-
-        await this.accessControlService.AddReaderMembershipAsync(this.IdentityString, userId, level);
-        await this.membership.WriteStateAsync();
-        await this.RefreshAccessControlViewAsync();
-
-        return member;
-    }
-
-    /// <inheritdoc/>
-    async Task<Member> IManageableGrain.RemoveMemberAsync(UserId userId) {
-        var member = this.manageableService.RemoveMember(this.membership.State, userId);
-
-        await this.accessControlService.RemoveMembershipAsync(this.IdentityString, userId);
-        await this.membership.WriteStateAsync();
-        await this.RefreshAccessControlViewAsync();
-
-        return member;
-    }
-
-    #endregion IManageable
+    #endregion IGrainMembership
 
     #region IGrainWithDashboards
 
     /// <inheritdoc/>
     Task<DashboardId> IGrainWithDashboards.AddDashboardAsync(DashboardId dashboardId) {
-        throw new NotImplementedException();
+        return Task.FromResult(dashboardId);
     }
 
     /// <inheritdoc/>
     Task IGrainWithDashboards.RemoveDashboardAsync(DashboardId dashboardId) {
-        throw new NotImplementedException();
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
     Task<List<DashboardId>> IGrainWithDashboards.GetDashboardAsync() {
-        throw new NotImplementedException();
+        return Task.FromResult(new List<DashboardId>());
     }
 
     #endregion IGrainWithDashboards
@@ -206,19 +192,20 @@ public partial class TenantGrain
 
     /// <inheritdoc/>
     Task<BusinessUnitId> ITenantGrain.AddBusinessUnitsAsync(BusinessUnitId businessUnitId) {
-        throw new NotImplementedException();
+        this.State.BusinessUnits.Add(businessUnitId);
+        return Task.FromResult(businessUnitId);
     }
 
     /// <inheritdoc/>
     async Task<Tenant> ITenantGrain.CreateAsync(string name, TenantTypes type, UserId ownerId) {
-        // Input validation
+        // TODO : Input validation
 
-        this.tenant.State.IsCreated = true;
-        this.tenant.State.Name = name;
-        this.tenant.State.Type = type;
-        await this.tenant.WriteStateAsync();
+        this.State.IsCreated = true;
+        this.State.Name = name;
+        this.State.Type = type;
+        await this.WriteStateAsync();
 
-        await ((IManageableGrain)this).SetOwnerAsync(ownerId, AccessLevelKind.Direct);
+        _ = await ((IGrainMembership)this).SetOwnerAsync(ownerId);
 
         return this.MapStateToTenant();
     }
@@ -230,12 +217,13 @@ public partial class TenantGrain
 
     /// <inheritdoc/>
     Task<List<BusinessUnitId>> ITenantGrain.GetBusinessUnitsAsync() {
-        return Task.FromResult(this.tenant.State.BusinessUnits);
+        return Task.FromResult(this.State.BusinessUnits);
     }
 
     /// <inheritdoc/>
-    Task ITenantGrain.RemoveBusinessUnitsAsync() {
-        throw new NotImplementedException();
+    Task ITenantGrain.RemoveBusinessUnitsAsync(BusinessUnitId businessUnitId) {
+        this.State.BusinessUnits.Add(businessUnitId);
+        return Task.CompletedTask;
     }
 
     #endregion ITenantGrain

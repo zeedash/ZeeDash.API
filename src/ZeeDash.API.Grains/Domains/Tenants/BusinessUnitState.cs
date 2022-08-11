@@ -6,7 +6,7 @@ using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Grains.Domains.AccessControl;
 
 public class BusinessUnitState
-    : IManageableState {
+    : IMembershipState {
 
     /// <summary>
     /// Name of the business unit
@@ -24,7 +24,7 @@ public class BusinessUnitState
     public List<DashboardId> Dashboards { get; set; } = new();
 
     /// <summary>
-    /// List of members of this business unit
+    /// List of all direct members of the business unit
     /// </summary>
     public List<Member> Members { get; set; } = new();
 }

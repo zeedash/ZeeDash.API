@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Abstractions.Grains;
+namespace ZeeDash.API.Abstractions.Grains.Common;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;

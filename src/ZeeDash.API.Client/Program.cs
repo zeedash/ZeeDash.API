@@ -162,5 +162,5 @@ public static class Program {
                 parts => parts
                     .AddApplicationPart(typeof(ICounterGrain).Assembly)
                     .WithReferences())
-            .AddSimpleMessageStreamProvider(StreamProviderName.Default);
+            .AddSimpleMessageStreamProvider(StreamProviderName.Membership);
 }

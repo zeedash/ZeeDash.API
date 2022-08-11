@@ -114,6 +114,7 @@ public class Program
             //    cfg.ConnectionString = GetStorageOptions(context.Configuration).ConnectionString;
             //})
             .AddSimpleMessageStreamProvider(StreamProviderName.Default)
+            .AddSimpleMessageStreamProvider(StreamProviderName.Membership)
             //.AddAzureTableGrainStorage(
             //    "PubSubStore",
             //    options =>

@@ -1,7 +1,7 @@
 # To build this Dockerfile, run the following command from the solution directory:
-# docker build --file "srv\ZeeDash.API.GraphQLServer\Dockerfile" --tag graph .
+# docker build --file "src\ZeeDash.API.GraphQLServer\Dockerfile" --tag zeedash/zeedash-api-graphql .
 # Or you can use the experimental buildx command for a better experience:
-# docker buildx build --progress plain --file "Source\ZeeDash.API.GraphQLServer\Dockerfile" --tag graph .
+# docker buildx build --progress plain --file "src\ZeeDash.API.GraphQLServer\Dockerfile" --tag graph .
 
 # Base image used by Visual Studio at development time
 # (See https://docs.microsoft.com/en-us/visualstudio/containers/container-msbuild-properties)
@@ -9,6 +9,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine AS base
 # Open Container Initiative (OCI) labels (See https://github.com/opencontainers/image-spec/blob/master/annotations.md).
 LABEL org.opencontainers.image.title="ZeeDash.API.GraphQLServer" \
     org.opencontainers.image.description="GraphQL API Server for ZeeDash" \
+    org.opencontainers.image.documentation="https://github.com/zeedash/ZeeDash.API" \
+    org.opencontainers.image.source="https://github.com/zeedash/ZeeDash.API.git" \
+    org.opencontainers.image.url="https://github.com/zeedash/ZeeDash.API" \
     org.opencontainers.image.vendor="Emilien GUILMINEAU"
 # Disable the culture invariant mode which defaults to true in the base alpine image
 # (See https://github.com/dotnet/corefx/blob/8245ee1e8f6063ccc7a3a60cafe821d29e85b02f/Documentation/architecture/globalization-invariant-mode.md)

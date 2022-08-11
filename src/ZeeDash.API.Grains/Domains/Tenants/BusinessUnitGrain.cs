@@ -8,6 +8,7 @@ using ZeeDash.API.Abstractions.Domains.Dashboards;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Grains.Common;
 
 public class BusinessUnitGrain : Grain<BusinessUnitState>, IBusinessUnitGrain {
 
@@ -42,7 +43,7 @@ public class BusinessUnitGrain : Grain<BusinessUnitState>, IBusinessUnitGrain {
     }
 
     /// <inheritdoc/>
-    Task<List<Member>> IManageableGrain.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
+    Task<List<Member>> IGrainMembership.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
         throw new NotImplementedException();
     }
 
@@ -57,22 +58,22 @@ public class BusinessUnitGrain : Grain<BusinessUnitState>, IBusinessUnitGrain {
     }
 
     /// <inheritdoc/>
-    Task<Member> IManageableGrain.RemoveMemberAsync(UserId userId) {
+    Task<Member> IGrainMembership.RemoveMemberAsync(UserId userId) {
         throw new NotImplementedException();
     }
 
     /// <inheritdoc/>
-    Task<Member> IManageableGrain.SetContributorAsync(UserId userId, AccessLevelKind? kind) {
+    Task<Member> IGrainMembership.SetContributorAsync(UserId userId) {
         throw new NotImplementedException();
     }
 
     /// <inheritdoc/>
-    Task<Member> IManageableGrain.SetOwnerAsync(UserId userId, AccessLevelKind? kind) {
+    Task<Member> IGrainMembership.SetOwnerAsync(UserId userId) {
         throw new NotImplementedException();
     }
 
     /// <inheritdoc/>
-    Task<Member> IManageableGrain.SetReaderAsync(UserId userId, AccessLevelKind? kind) {
+    Task<Member> IGrainMembership.SetReaderAsync(UserId userId) {
         throw new NotImplementedException();
     }
 }

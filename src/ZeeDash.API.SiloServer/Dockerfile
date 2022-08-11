@@ -1,5 +1,5 @@
 # To build this Dockerfile, run the following command from the solution directory:
-# docker build --file "src\ZeeDash.API.SiloServer\Dockerfile" --tag orleans .
+# docker build --file "src\ZeeDash.API.SiloServer\Dockerfile" --tag zeedash/zeedash-api-silo .
 # Or you can use the experimental buildx command for a better experience:
 # docker buildx build --progress plain --file "src\ZeeDash.API.SiloServer\Dockerfile" --tag orleans .
 
@@ -7,8 +7,8 @@
 # (See https://docs.microsoft.com/en-us/visualstudio/containers/container-msbuild-properties)
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine AS base
 # Open Container Initiative (OCI) labels (See https://github.com/opencontainers/image-spec/blob/master/annotations.md).
-LABEL org.opencontainers.image.title="ZeeDash.API" \
-    org.opencontainers.image.description="API of the ZeeDash backend" \
+LABEL org.opencontainers.image.title="ZeeDash.API.SiloServer" \
+    org.opencontainers.image.description="Orleans silo server of the ZeeDash backend" \
     org.opencontainers.image.documentation="https://github.com/zeedash/ZeeDash.API" \
     org.opencontainers.image.source="https://github.com/zeedash/ZeeDash.API.git" \
     org.opencontainers.image.url="https://github.com/zeedash/ZeeDash.API" \

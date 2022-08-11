@@ -1,8 +1,7 @@
-namespace ZeeDash.API.Abstractions.Grains;
+namespace ZeeDash.API.Abstractions.Grains.Common;
 
 using System.Threading.Tasks;
 using ZeeDash.API.Abstractions.Domains.IAM;
-using ZeeDash.API.Abstractions.Domains.Identity;
 
 /// <summary>
 /// Methods for managing access control of the grain
@@ -14,5 +13,10 @@ public interface IMembershipView {
     /// </summary>
     /// <param name="level">The level to list</param>
     /// <returns>The list of all <see cref="Member"/> of the grain, ordered by highest role first</returns>
-    Task<List<Member>> GetMembersAsync(AccessLevel? level = null);
+    Task<List<Membership>> GetMembersAsync(AccessLevel? level = null);
+
+    /// <summary>
+    /// Start a refresh of the view
+    /// </summary>
+    Task RefreshAsync();
 }

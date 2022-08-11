@@ -6,31 +6,37 @@ using ZeeDash.API.Abstractions.Domains.Identity;
 
 public interface IAccessControlService {
 
-    Task AddContributorMembershipAsync(string identityString, UserId userId, AccessLevel level);
+    Task<List<Member>> GetMembersAsync(MembershipViewId id);
 
-    Task AddOwnerMembershipAsync(string identityString, UserId userId, AccessLevel level);
+    Task AddContributorMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level);
 
-    Task AddReaderMembershipAsync(string identityString, UserId userId, AccessLevel level);
+    Task AddOwnerMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level);
 
-    Task RemoveMembershipAsync(string identityString, UserId userId);
+    Task AddReaderMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level);
+
+    Task RemoveMembershipAsync(MembershipViewId id, UserId userId);
 }
 
 public class AccessControlService
     : IAccessControlService {
 
-    Task IAccessControlService.AddContributorMembershipAsync(string identityString, UserId userId, AccessLevel level) {
+    Task<List<Member>> IAccessControlService.GetMembersAsync(MembershipViewId id) {
+        throw new NotImplementedException();
+    }
+
+    Task IAccessControlService.AddContributorMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level) {
         return Task.CompletedTask;
     }
 
-    Task IAccessControlService.AddOwnerMembershipAsync(string identityString, UserId userId, AccessLevel level) {
+    Task IAccessControlService.AddOwnerMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level) {
         return Task.CompletedTask;
     }
 
-    Task IAccessControlService.AddReaderMembershipAsync(string identityString, UserId userId, AccessLevel level) {
+    Task IAccessControlService.AddReaderMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level) {
         return Task.CompletedTask;
     }
 
-    Task IAccessControlService.RemoveMembershipAsync(string identityString, UserId userId) {
+    Task IAccessControlService.RemoveMembershipAsync(MembershipViewId id, UserId userId) {
         return Task.CompletedTask;
     }
 }
