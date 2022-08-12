@@ -54,7 +54,7 @@ public partial class TenantGrain
     #region IIncomingGrainCallFilter
 
     async Task IIncomingGrainCallFilter.Invoke(IIncomingGrainCallContext context) {
-        var isCreated = this.State.IsCreated;
+        var isCreated = !this.State.Id.IsEmpty;
         if (!string.Equals(context.InterfaceMethod.Name, nameof(ITenantGrain.CreateAsync), StringComparison.Ordinal)) {
             if (!isCreated) {
                 throw new UnauthorizedAccessException();
@@ -63,10 +63,6 @@ public partial class TenantGrain
             if (isCreated) {
                 throw new UnauthorizedAccessException();
             }
-        }
-
-        if (this.State.Id.IsEmpty) {
-            this.State.Id = TenantId.Parse(this.IdentityString);
         }
 
         await context.Invoke();
@@ -172,16 +168,10 @@ public partial class TenantGrain
     #region ITenantGrain
 
     /// <inheritdoc/>
-    Task<BusinessUnitId> ITenantGrain.AddBusinessUnitsAsync(BusinessUnitId businessUnitId) {
-        this.State.BusinessUnits.Add(businessUnitId);
-        return Task.FromResult(businessUnitId);
-    }
-
-    /// <inheritdoc/>
     async Task<Tenant> ITenantGrain.CreateAsync(string name, TenantTypes type, UserId ownerId) {
         // TODO : Input validation
 
-        this.State.IsCreated = true;
+        this.State.Id = TenantId.Parse(this.GetPrimaryKeyString());
         this.State.Name = name;
         this.State.Type = type;
         await this.WriteStateAsync();

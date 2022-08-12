@@ -13,14 +13,14 @@ public class TenantState
     /// Tenant identifier
     /// </summary>
     /// <remarks>
-    /// Its value is based on the <see cref="Grain"/> <see cref="Grain.IdentityString"/> ಠ_ಠ
+    /// Its value is based on the <see cref="Grain"/> Primary Key String ಠ_ಠ
     /// </remarks>
     public TenantId Id { get; set; } = TenantId.Empty;
 
-    /// <summary>
-    /// Défine if state is created or not
-    /// </summary>
-    public bool IsCreated { get; set; }
+    ///// <summary>
+    ///// Défine if state is created or not
+    ///// </summary>
+    //public bool IsCreated { get; set; }
 
     /// <summary>
     /// Name of the tenant
