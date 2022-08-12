@@ -21,7 +21,7 @@ public partial class TenantGrain
     #region Private Fields
 
     private readonly IAccessControlService accessControlService;
-    private readonly IManageableService manageableService;
+    private readonly IMembershipService manageableService;
 
     #endregion Private Fields
 
@@ -29,7 +29,7 @@ public partial class TenantGrain
 
     public TenantGrain(
         IAccessControlService accessControlService,
-        IManageableService manageableService) {
+        IMembershipService manageableService) {
         this.accessControlService = accessControlService;
         this.manageableService = manageableService;
     }
@@ -53,10 +53,6 @@ public partial class TenantGrain
 
     #region IIncomingGrainCallFilter
 
-    public override Task OnActivateAsync() {
-        return base.OnActivateAsync();
-    }
-
     async Task IIncomingGrainCallFilter.Invoke(IIncomingGrainCallContext context) {
         var isCreated = this.State.IsCreated;
         if (!string.Equals(context.InterfaceMethod.Name, nameof(ITenantGrain.CreateAsync), StringComparison.Ordinal)) {
@@ -79,21 +75,6 @@ public partial class TenantGrain
     #endregion IIncomingGrainCallFilter
 
     #region IGrainMembership
-
-    /// <inheritdoc/>
-    Task<List<Member>> IGrainMembership.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
-        var query = this.State.Members.AsQueryable();
-
-        if (level is not null) {
-            query = query.Where(m => m.Level == level.Value);
-        }
-
-        if (kind is not null) {
-            query = query.Where(m => m.Kind == kind.Value);
-        }
-
-        return Task.FromResult(query.ToList());
-    }
 
     /// <inheritdoc/>
     Task<Member> IGrainMembership.SetContributorAsync(UserId userId) {
@@ -129,7 +110,7 @@ public partial class TenantGrain
     /// <param name="level">The level of the user on the tenant</param>
     /// <returns>The user as member</returns>
     private async Task<Member> SetMembershipAsync(UserId userId, AccessLevel level) {
-        var member = this.manageableService.SetMember(this.State, userId, level, AccessLevelKind.Direct);
+        var member = this.manageableService.SetMember(this.State, userId, level);
 
         var membershipId = new MembershipViewId(this.State.Id);
         switch (level) {
@@ -213,6 +194,12 @@ public partial class TenantGrain
     /// <inheritdoc/>
     Task<Tenant> ITenantGrain.GetAsync() {
         return Task.FromResult(this.MapStateToTenant());
+    }
+
+    /// <inheritdoc/>
+    Task<BusinessUnitId> ITenantGrain.AddBusinessUnitsAsync(BusinessUnitId businessUnitId) {
+        this.State.BusinessUnits.Add(businessUnitId);
+        return Task.FromResult(businessUnitId);
     }
 
     /// <inheritdoc/>

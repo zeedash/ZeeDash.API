@@ -10,14 +10,6 @@ using ZeeDash.API.Abstractions.Domains.Identity;
 public interface IGrainMembership {
 
     /// <summary>
-    /// Get the list of all members of the grain
-    /// </summary>
-    /// <param name="level">The level to list</param>
-    /// <param name="kind">The level to list</param>
-    /// <returns>The list of all <see cref="Member"/> of the grain</returns>
-    Task<List<Member>> GetMembersAsync(AccessLevel? level = null, AccessLevelKind? kind = null);
-
-    /// <summary>
     /// Set a user as <see cref="AccessLevel.Owner"/> of the grain
     /// </summary>
     /// <param name="userId">The identifier of the user to affect</param>

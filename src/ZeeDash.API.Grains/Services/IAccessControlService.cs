@@ -6,7 +6,7 @@ using ZeeDash.API.Abstractions.Domains.Identity;
 
 public interface IAccessControlService {
 
-    Task<List<Member>> GetMembersAsync(MembershipViewId id);
+    Task<List<Membership>> GetMembersAsync(MembershipViewId id);
 
     Task AddContributorMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level);
 
@@ -20,8 +20,8 @@ public interface IAccessControlService {
 public class AccessControlService
     : IAccessControlService {
 
-    Task<List<Member>> IAccessControlService.GetMembersAsync(MembershipViewId id) {
-        throw new NotImplementedException();
+    Task<List<Membership>> IAccessControlService.GetMembersAsync(MembershipViewId id) {
+        return Task.FromResult(new List<Membership>());
     }
 
     Task IAccessControlService.AddContributorMembershipAsync(MembershipViewId id, UserId userId, AccessLevel level) {

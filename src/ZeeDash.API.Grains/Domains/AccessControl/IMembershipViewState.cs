@@ -5,11 +5,11 @@ using ZeeDash.API.Abstractions.Domains.IAM;
 
 public interface IMembershipViewState {
     MembershipViewId Id { get; set; }
-    List<Member> Members { get; set; }
+    List<Membership> Members { get; set; }
 }
 
 public class MembershipViewState
     : IMembershipViewState {
     public MembershipViewId Id { get; set; } = MembershipViewId.Empty;
-    public List<Member> Members { get; set; } = new();
+    public List<Membership> Members { get; set; } = new();
 }

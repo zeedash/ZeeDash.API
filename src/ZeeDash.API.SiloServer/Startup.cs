@@ -28,7 +28,7 @@ public class Startup
 
     public virtual void ConfigureServices(IServiceCollection services) =>
         services
-            .AddScoped<IManageableService, ManageableService>()
+            .AddScoped<IMembershipService, MembershipService>()
             .AddScoped<IAccessControlService, AccessControlService>()
             .AddRouting(options => options.LowercaseUrls = true)
             .AddOpenTelemetryTracing(builder => builder.AddCustomTracing(this.webHostEnvironment))

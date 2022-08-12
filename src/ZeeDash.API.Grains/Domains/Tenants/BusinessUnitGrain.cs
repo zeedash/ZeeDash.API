@@ -43,11 +43,6 @@ public class BusinessUnitGrain : Grain<BusinessUnitState>, IBusinessUnitGrain {
     }
 
     /// <inheritdoc/>
-    Task<List<Member>> IGrainMembership.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
-        throw new NotImplementedException();
-    }
-
-    /// <inheritdoc/>
     Task IBusinessUnitGrain.RemoveBusinessUnitsAsync() {
         throw new NotImplementedException();
     }

@@ -43,35 +43,34 @@ public partial class TenantMembershipViewGrain
 
     public override async Task OnActivateAsync() {
         if (this.State.Id.IsEmpty) {
-            this.State.Id = MembershipViewId.Parse(this.IdentityString);
+            this.State.Id = MembershipViewId.Parse(this.GetPrimaryKeyString());
         }
 
         await ((IMembershipView)this).RefreshAsync();
 
+        // Subscribe to parents activities
         var streamProvider = this.GetStreamProvider(StreamProviderName.Membership);
         this.tenantUpdateSubscription = await streamProvider
             .GetStream<OnTenantUpdate>(this.State.Id.TenantId.AsGuid(), StreamName.Membership.OnTenantUpdate)
-            .SubscribeAsync(this.OnTenantUpdateAsync)
-            .ConfigureAwait(false);
+            .SubscribeAsync(this.OnTenantUpdateAsync);
 
         if (!this.State.Id.BusinessUnitId.IsEmpty) {
             this.businessUnitUpdateSubscription = await streamProvider
                 .GetStream<OnBusinessUnitUpdate>(this.State.Id.BusinessUnitId.AsGuid(), StreamName.Membership.OnBusinessUnitUpdate)
-                .SubscribeAsync(this.OnBusinessUnitUpdateAsync)
-                .ConfigureAwait(false);
+                .SubscribeAsync(this.OnBusinessUnitUpdateAsync);
         }
 
         if (!this.State.Id.DashboardId.IsEmpty) {
             this.dashboardUpdateSubscription = await streamProvider
                 .GetStream<OnDashboardUpdate>(this.State.Id.DashboardId.AsGuid(), StreamName.Membership.OnDashboardUpdate)
-                .SubscribeAsync(this.OnDashboardUpdateAsync)
-                .ConfigureAwait(false);
+                .SubscribeAsync(this.OnDashboardUpdateAsync);
         }
 
         await base.OnActivateAsync();
     }
 
     public override async Task OnDeactivateAsync() {
+        // Unsubscribe from all active subscription
         if (this.tenantUpdateSubscription != null) {
             await this.tenantUpdateSubscription.UnsubscribeAsync().ConfigureAwait(false);
         }
@@ -81,6 +80,7 @@ public partial class TenantMembershipViewGrain
         if (this.dashboardUpdateSubscription != null) {
             await this.dashboardUpdateSubscription.UnsubscribeAsync().ConfigureAwait(false);
         }
+
         await base.OnDeactivateAsync();
     }
 
@@ -119,7 +119,7 @@ public partial class TenantMembershipViewGrain
         var members = query.ToList();
 
         // Retreive user infos
-        var tasks = members.Select(member => this.GrainFactory.GetGrain<IUserGrain>(member.UserId.Value).GetAsync());
+        var tasks = members.Select(member => this.GrainFactory.GetGrain<IUserGrain>(member.User.Id.Value).GetAsync());
         await Task.WhenAll(tasks);
         var users = tasks.Select(t => t.Result).ToDictionary(user => user.Id, user => user);
 
@@ -128,7 +128,7 @@ public partial class TenantMembershipViewGrain
             .Select(m => new Membership {
                 Kind = m.Kind,
                 Level = m.Level,
-                User = users[m.UserId]
+                User = users[m.User.Id]
             })
             .ToList();
     }
