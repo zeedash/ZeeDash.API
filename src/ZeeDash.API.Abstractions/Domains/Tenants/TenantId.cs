@@ -1,6 +1,8 @@
 namespace ZeeDash.API.Abstractions.Domains.Tenants;
 
 using NUlid;
+using ZeeDash.API.Abstractions.Constants;
+using ZeeDash.API.Abstractions.Exceptions;
 
 /// <summary>
 /// Identifier of the <see cref="Tenant"/>
@@ -20,7 +22,7 @@ public class TenantId
     //}
 
     public TenantId(Ulid value)
-        : base(string.Format(Constants.URNs.TenantZRN, value)) {
+        : base(string.Format(URNs.TenantZRN, value)) {
         this.IsEmpty = value == Ulid.Empty;
         this.idValue = value;
     }
@@ -36,6 +38,17 @@ public class TenantId
     public Ulid AsUlid() => this.idValue;
 
     public static TenantId Parse(string identityString) {
-        throw new NotImplementedException();
+        var index = identityString.IndexOf(URNs.TenantTemplate, StringComparison.OrdinalIgnoreCase);
+        var textSize = identityString.Length - index - URNs.TenantTemplate.Length;
+        if (textSize != 26) { // 26 == Ulid.ToString().Length
+            throw new ZrnFormatException(identityString, nameof(TenantId));
+        }
+
+        var tenantUlid = identityString.AsSpan(index + URNs.TenantTemplate.Length);
+        if (Ulid.TryParse(tenantUlid, out var value)) {
+            return new TenantId(value);
+        }
+
+        throw new ZrnFormatException(identityString, nameof(TenantId));
     }
 }
