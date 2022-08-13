@@ -1,6 +1,5 @@
 namespace ZeeDash.API.Client;
 
-using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Orleans;
 using Orleans.Configuration;
@@ -8,7 +7,6 @@ using Orleans.Hosting;
 using Orleans.Runtime;
 using Orleans.Streams;
 using ZeeDash.API.Abstractions.Constants;
-using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains.Legacy;
@@ -25,8 +23,8 @@ public static class Program {
 
             var tenantId = new TenantId();// "zrn:zeedash:tenant/01G88YKQZVA87R0HKNC8J3ZDR0");
             var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tenantId.Value);
-            var readerId = new UserId("zrn:zeedash:user/01G88YV82PHHDBGTR4T00MNB2H");
-            var ownerId = new UserId("zrn:zeedash:user/01G8TJJ5F6FSD2TXZQAWN2TBMB");
+            var readerId = UserId.Parse("zrn:zeedash:user/01G88YV82PHHDBGTR4T00MNB2H");
+            var ownerId = UserId.Parse("zrn:zeedash:user/01G8TJJ5F6FSD2TXZQAWN2TBMB");
             await tenantGrain.CreateAsync("Salut ma poule !", TenantTypes.Personal, ownerId);
             await tenantGrain.SetReaderAsync(readerId);
 

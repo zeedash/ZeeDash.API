@@ -30,6 +30,7 @@ public class Startup
         services
             .AddScoped<IMembershipService, MembershipService>()
             .AddScoped<IAccessControlService, AccessControlService>()
+            .AddRedisServices(this.configuration)
             .AddRouting(options => options.LowercaseUrls = true)
             .AddOpenTelemetryTracing(builder => builder.AddCustomTracing(this.webHostEnvironment))
             .AddHealthChecks()

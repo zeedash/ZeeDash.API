@@ -9,10 +9,10 @@ using ZeeDash.API.Abstractions.Exceptions;
 /// <summary>
 /// Identifier of a <see cref="MembershipView"/>
 /// </summary>
-public class MembershipViewId
+public class MembershipId
     : Commons.Identities.Identity {
 
-    public MembershipViewId(TenantId tenantId)
+    public MembershipId(TenantId tenantId)
         : base(string.Format(URNs.MembershipZRN, tenantId.Value)) {
         this.IsEmpty = tenantId.IsEmpty;
         this.TenantId = tenantId;
@@ -20,7 +20,7 @@ public class MembershipViewId
         this.DashboardId = DashboardId.Empty;
     }
 
-    public MembershipViewId(BusinessUnitId businessUnitId)
+    public MembershipId(BusinessUnitId businessUnitId)
         : base(string.Format(URNs.MembershipZRN, businessUnitId.Value)) {
         this.IsEmpty = businessUnitId.IsEmpty;
         this.TenantId = businessUnitId.TenantId;
@@ -28,7 +28,7 @@ public class MembershipViewId
         this.DashboardId = DashboardId.Empty;
     }
 
-    public MembershipViewId(DashboardId dashboardId)
+    public MembershipId(DashboardId dashboardId)
         : base(string.Format(URNs.MembershipZRN, dashboardId.Value)) {
         this.IsEmpty = dashboardId.IsEmpty;
         this.TenantId = dashboardId.TenantId;
@@ -36,32 +36,68 @@ public class MembershipViewId
         this.DashboardId = dashboardId;
     }
 
-    public static MembershipViewId Empty => new(TenantId.Empty);
+    public static MembershipId Empty => new(TenantId.Empty);
 
     public bool IsEmpty { get; init; }
     public TenantId TenantId { get; init; }
     public BusinessUnitId BusinessUnitId { get; init; }
     public DashboardId DashboardId { get; init; }
 
-    public static MembershipViewId Parse(string identityString) {
+    public string IsRelatedTo {
+        get {
+            if (!this.DashboardId.IsEmpty) {
+                return nameof(Dashboard);
+            }
+
+            if (!this.BusinessUnitId.IsEmpty) {
+                return nameof(BusinessUnit);
+            }
+
+            if (!this.TenantId.IsEmpty) {
+                return nameof(Tenant);
+            }
+
+            throw new ZrnDecodeException(this.Value);
+        }
+    }
+
+    public string ParentValue {
+        get {
+            if (!this.DashboardId.IsEmpty) {
+                return this.DashboardId.Value;
+            }
+
+            if (!this.BusinessUnitId.IsEmpty) {
+                return this.BusinessUnitId.Value;
+            }
+
+            if (!this.TenantId.IsEmpty) {
+                return this.TenantId.Value;
+            }
+
+            throw new ZrnDecodeException(this.Value);
+        }
+    }
+
+    public static MembershipId Parse(string identityString) {
         var containsTemplate = identityString.Contains(URNs.MembershipTemplate, StringComparison.OrdinalIgnoreCase);
         if (!containsTemplate) {
-            throw new ZrnFormatException(identityString, nameof(MembershipViewId));
+            throw new ZrnFormatException(identityString, nameof(MembershipId));
         }
 
         // Skip the lasts "URNs.MembershipTemplate.Length"th character
         var identifier = identityString[..^URNs.MembershipTemplate.Length];
 
         if (identityString.Contains(URNs.DashboardTemplate)) {
-            return new MembershipViewId(DashboardId.Parse(identifier));
+            return new MembershipId(DashboardId.Parse(identifier));
         }
 
         if (identityString.Contains(URNs.BusinessUnitTemplate)) {
-            return new MembershipViewId(BusinessUnitId.Parse(identifier));
+            return new MembershipId(BusinessUnitId.Parse(identifier));
         }
 
         if (identityString.Contains(URNs.TenantTemplate)) {
-            return new MembershipViewId(TenantId.Parse(identifier));
+            return new MembershipId(TenantId.Parse(identifier));
         }
 
         throw new ZrnDecodeException(identityString);

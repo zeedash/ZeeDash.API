@@ -25,6 +25,7 @@
 
   <ItemGroup Label="Package References">
     <PackageReference Include="Boxed.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="6.0.8" />
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="3.6.4" />
     <PackageReference Include="Microsoft.Orleans.Reminders.AdoNet" Version="3.6.4" />
     <PackageReference Include="Npgsql" Version="6.0.6" />

@@ -1,10 +1,23 @@
 namespace ZeeDash.API.Abstractions.Domains.Tenants;
 
 using Orleans;
-using ZeeDash.API.Abstractions.Grains.Common;
+using ZeeDash.API.Abstractions.Domains.IAM;
 
-public interface ITenantMembershipViewGrain : IGrainWithStringKey, IMembershipView { }
+/// <summary>
+/// Managing membership to a manageable grain
+/// </summary>
+public interface IMembershipGrain : IGrainWithStringKey {
 
-public interface IBusinessUnitMembershipViewGrain : IGrainWithStringKey, IMembershipView { }
+    /// <summary>
+    /// Get the list of all members of the grain
+    /// </summary>
+    /// <param name="level">The level to list</param>
+    /// <param name="kind">The kind of access to list</param>
+    /// <returns>The list of all <see cref="Member"/> of the grain, ordered by highest role first</returns>
+    Task<List<Membership>> GetMembersAsync(AccessLevel? level = null, AccessLevelKind? kind = null);
 
-public interface IDashboardMembershipViewGrain : IGrainWithStringKey, IMembershipView { }
+    /// <summary>
+    /// Start a refresh of the view
+    /// </summary>
+    Task RefreshAsync();
+}

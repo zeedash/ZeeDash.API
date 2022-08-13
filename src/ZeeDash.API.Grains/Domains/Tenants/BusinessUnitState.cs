@@ -6,7 +6,7 @@ using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Grains.Domains.AccessControl;
 
 public class BusinessUnitState
-    : IMembershipState {
+    : IHaveMembers {
 
     /// <summary>
     /// Name of the business unit

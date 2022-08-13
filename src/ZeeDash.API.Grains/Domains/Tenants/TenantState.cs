@@ -7,7 +7,7 @@ using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Grains.Domains.AccessControl;
 
 public class TenantState
-    : IMembershipState {
+    : IHaveMembers {
 
     /// <summary>
     /// Tenant identifier

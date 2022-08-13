@@ -15,6 +15,12 @@ public static class URNs {
     public const string MembershipTemplate = "/membership";
     public const string MembershipZRN = "{0}" + MembershipTemplate;
 
-    public const string UserZRN = ZRN + "user/{0}";
-    public const string UserViewZRN = UserZRN + ":view/{1}";
+    public const string GroupTemplate = ":group/";
+    public const string GroupZRN = ZRN + GroupTemplate + "{0}";
+
+    public const string UserTemplate = ":user/";
+    public const string UserZRN = ZRN + UserTemplate + "{0}";
+
+    public const string UserViewTemplate = ":view/";
+    public const string UserViewZRN = UserZRN + UserViewTemplate + "{1}";
 }

@@ -91,7 +91,7 @@ public partial class TenantGrain
     async Task<Member> IGrainMembership.RemoveMemberAsync(UserId userId) {
         var member = this.manageableService.RemoveMember(this.State, userId);
 
-        var membershipId = new MembershipViewId(this.State.Id);
+        var membershipId = new MembershipId(this.State.Id);
         await this.accessControlService.RemoveMembershipAsync(membershipId, userId);
         await this.WriteStateAsync();
         await this.RefreshAccessControlViewAsync();
@@ -108,24 +108,8 @@ public partial class TenantGrain
     private async Task<Member> SetMembershipAsync(UserId userId, AccessLevel level) {
         var member = this.manageableService.SetMember(this.State, userId, level);
 
-        var membershipId = new MembershipViewId(this.State.Id);
-        switch (level) {
-            case AccessLevel.Reader:
-                await this.accessControlService.AddReaderMembershipAsync(membershipId, userId, level);
-                break;
-
-            case AccessLevel.Contributor:
-                await this.accessControlService.AddContributorMembershipAsync(membershipId, userId, level);
-                break;
-
-            case AccessLevel.Owner:
-                await this.accessControlService.AddOwnerMembershipAsync(membershipId, userId, level);
-                break;
-
-            case AccessLevel.None:
-            default:
-                break;
-        }
+        var membershipId = new MembershipId(this.State.Id);
+        await this.accessControlService.AddMembershipAsync(membershipId, userId, level);
 
         await this.WriteStateAsync();
         await this.RefreshAccessControlViewAsync();
@@ -138,8 +122,8 @@ public partial class TenantGrain
     }
 
     private async Task RefreshAccessControlViewAsync() {
-        var membershipId = new MembershipViewId(this.State.Id);
-        var membership = this.GrainFactory.GetGrain<ITenantMembershipViewGrain>(membershipId.Value);
+        var membershipId = new MembershipId(this.State.Id);
+        var membership = this.GrainFactory.GetGrain<IMembershipGrain>(membershipId.Value);
         await membership.RefreshAsync();
         await Task.CompletedTask;
     }
@@ -175,6 +159,8 @@ public partial class TenantGrain
         this.State.Name = name;
         this.State.Type = type;
         await this.WriteStateAsync();
+
+        await this.accessControlService.CreateTenantAsync(this.State.Id);
 
         _ = await ((IGrainMembership)this).SetOwnerAsync(ownerId);
 

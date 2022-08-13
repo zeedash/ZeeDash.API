@@ -1,4 +1,4 @@
-namespace ZeeDash.API.Grains.Domains.Tenants;
+namespace ZeeDash.API.Grains.Domains.AccessControl;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -7,20 +7,20 @@ using Orleans;
 using Orleans.Streams;
 using ZeeDash.API.Abstractions.Constants;
 using ZeeDash.API.Abstractions.Domains.IAM;
+using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains;
 using ZeeDash.API.Abstractions.Grains.Common;
-using ZeeDash.API.Grains.Domains.AccessControl;
 using ZeeDash.API.Grains.Domains.AccessControl.Events;
 using ZeeDash.API.Grains.Services;
 
-public partial class TenantMembershipViewGrain
+public partial class MembershipGrain
     : Grain<MembershipViewState>
-    , ITenantMembershipViewGrain {
+    , IMembershipGrain {
 
     #region Private Fields
 
-    private readonly ILogger<TenantMembershipViewGrain> logger;
+    private readonly ILogger<MembershipGrain> logger;
     private readonly IAccessControlService accessControlService;
     private StreamSubscriptionHandle<OnTenantUpdate>? tenantUpdateSubscription;
     private StreamSubscriptionHandle<OnBusinessUnitUpdate>? businessUnitUpdateSubscription;
@@ -30,8 +30,8 @@ public partial class TenantMembershipViewGrain
 
     #region Ctor.Dtor
 
-    public TenantMembershipViewGrain(
-        ILogger<TenantMembershipViewGrain> logger,
+    public MembershipGrain(
+        ILogger<MembershipGrain> logger,
         IAccessControlService accessControlService) {
         this.logger = logger;
         this.accessControlService = accessControlService;
@@ -43,7 +43,7 @@ public partial class TenantMembershipViewGrain
 
     public override async Task OnActivateAsync() {
         if (this.State.Id.IsEmpty) {
-            this.State.Id = MembershipViewId.Parse(this.GetPrimaryKeyString());
+            this.State.Id = MembershipId.Parse(this.GetPrimaryKeyString());
         }
 
         await ((IMembershipView)this).RefreshAsync();
@@ -108,7 +108,7 @@ public partial class TenantMembershipViewGrain
     #region IMembershipView
 
     /// <inheritdoc/>
-    async Task<List<Membership>> IMembershipView.GetMembersAsync(AccessLevel? level) {
+    Task<List<Membership>> IMembershipGrain.GetMembersAsync(AccessLevel? level, AccessLevelKind? kind) {
         // Query local state
         var query = this.State.Members.AsQueryable();
 
@@ -116,26 +116,62 @@ public partial class TenantMembershipViewGrain
             query = query.Where(m => m.Level == level.Value);
         }
 
+        if (kind is not null) {
+            query = query.Where(m => m.Kind == kind.Value);
+        }
+
         var members = query.ToList();
 
-        // Retreive user infos
-        var tasks = members.Select(member => this.GrainFactory.GetGrain<IUserGrain>(member.User.Id.Value).GetAsync());
-        await Task.WhenAll(tasks);
-        var users = tasks.Select(t => t.Result).ToDictionary(user => user.Id, user => user);
-
         // Return complete membership
-        return members
-            .Select(m => new Membership {
-                Kind = m.Kind,
-                Level = m.Level,
-                User = users[m.User.Id]
-            })
-            .ToList();
+        return Task.FromResult(members);
     }
 
     /// <inheritdoc/>
-    async Task IMembershipView.RefreshAsync() {
-        this.State.Members = await this.accessControlService.GetMembersAsync(this.State.Id);
+    async Task IMembershipGrain.RefreshAsync() {
+        var members = await this.accessControlService.GetMembersAsync(this.State.Id);
+
+        // Retreive user infos
+        var userIds = members
+            .Where(member => member.IsUser)
+            .Select(member => UserId.Parse(member.MemberId));
+
+        var getUserTasks = userIds.Select(id => this.GrainFactory.GetGrain<IUserGrain>(id.Value).GetAsync());
+        await Task.WhenAll(getUserTasks);
+        var users = getUserTasks.Select(t => t.Result).ToDictionary(user => user.Id.Value, user => user);
+
+        this.State.Members.AddRange(
+            members
+                .Where(member => member.IsUser)
+                .Select(m => new Membership {
+                    Level = m.Level,
+                    Kind = m.Kind,
+                    User = users[m.MemberId],
+                    Group = new Group()
+                })
+                .ToList()
+        );
+
+        // Retreive group infos
+        var groupIds = members
+            .Where(member => !member.IsUser)
+            .Select(member => GroupId.Parse(member.MemberId));
+
+        var getGroupTasks = userIds.Select(id => this.GrainFactory.GetGrain<IGroupGrain>(id.Value).GetAsync());
+        await Task.WhenAll(getGroupTasks);
+        var groups = getGroupTasks.Select(t => t.Result).ToDictionary(group => group.Id.Value, group => group);
+
+        this.State.Members.AddRange(
+            members
+                .Where(member => !member.IsUser)
+                .Select(m => new Membership {
+                    Level = m.Level,
+                    Kind = m.Kind,
+                    User = new User(),
+                    Group = groups[m.MemberId]
+                })
+                .ToList()
+        );
+
         await this.WriteStateAsync();
     }
 

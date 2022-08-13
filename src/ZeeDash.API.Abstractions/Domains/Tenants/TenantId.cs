@@ -12,14 +12,7 @@ public class TenantId
     private readonly Ulid idValue;
 
     public TenantId()
-        : this(Ulid.NewUlid()) {
-        this.IsEmpty = false;
-    }
-
-    //public TenantId(string value)
-    //    : base(value) {
-    //    this.IsEmpty = false;
-    //}
+        : this(Ulid.NewUlid()) { }
 
     public TenantId(Ulid value)
         : base(string.Format(URNs.TenantZRN, value)) {
@@ -27,15 +20,13 @@ public class TenantId
         this.idValue = value;
     }
 
-    public static TenantId Empty => new(Ulid.Empty);
-
-    //public static TenantId Parse(string value) => new(Ulid.Empty);
-
     public bool IsEmpty { get; init; }
 
     public Guid AsGuid() => this.idValue.ToGuid();
 
     public Ulid AsUlid() => this.idValue;
+
+    public static TenantId Empty => new(Ulid.Empty);
 
     public static TenantId Parse(string identityString) {
         var index = identityString.IndexOf(URNs.TenantTemplate, StringComparison.OrdinalIgnoreCase);
