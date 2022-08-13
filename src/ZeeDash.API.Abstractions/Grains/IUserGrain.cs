@@ -9,10 +9,10 @@ public interface IUserGrain : IGrainWithStringKey {
     /// <summary>
     /// Create a grain dedicated to the user
     /// </summary>
-    /// <param name="email">The user's email</param>
     /// <param name="fullName">the user's fullname</param>
+    /// <param name="email">The user's email</param>
     /// <returns>The user newly created</returns>
-    Task<User> CreateAsync(string email, string fullName);
+    Task<User> CreateAsync(string fullName, string email);
 
     /// <summary>
     /// Get the user data

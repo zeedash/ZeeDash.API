@@ -2,6 +2,7 @@ namespace ZeeDash.API.Abstractions.Domains.Tenants;
 
 using NUlid;
 using ZeeDash.API.Abstractions.Constants;
+using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Exceptions;
 
 /// <summary>
@@ -13,6 +14,9 @@ public class TenantId
 
     public TenantId()
         : this(Ulid.NewUlid()) { }
+
+    public TenantId(UserId userId)
+        : this(userId.AsUlid()) { }
 
     public TenantId(Ulid value)
         : base(string.Format(URNs.TenantZRN, value)) {

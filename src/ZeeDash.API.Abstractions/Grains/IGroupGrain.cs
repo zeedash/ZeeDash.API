@@ -20,6 +20,12 @@ public interface IGroupGrain : IGrainWithStringKey {
     Task<Group> GetAsync();
 
     /// <summary>
+    /// Check if the user is included into the group
+    /// </summary>
+    /// <returns><see cref="true"/> if user is in group, otherwise <see cref="false"/>.</returns>
+    Task<bool> HasUsersAsync(UserId userId);
+
+    /// <summary>
     /// Get the list of all users belonging to the group
     /// </summary>
     /// <returns>The users list</returns>
@@ -30,12 +36,12 @@ public interface IGroupGrain : IGrainWithStringKey {
     /// </summary>
     /// <param name="userId">The identifier of the user to add</param>
     /// <returns>The group (raw)</returns>
-    Task<Group> AddUserAsync(UserId userId);
+    Task AddUserAsync(UserId userId);
 
     /// <summary>
     /// Remove a user from the group
     /// </summary>
     /// <param name="userId">The identifier of the user to remove</param>
     /// <returns>The group (raw)</returns>
-    Task<Group> RemoveUserAsync(UserId userId);
+    Task RemoveUserAsync(UserId userId);
 }

@@ -8,6 +8,7 @@ using ZeeDash.API.Abstractions.Domains.Dashboards;
 using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
+using ZeeDash.API.Abstractions.Grains;
 using ZeeDash.API.Abstractions.Grains.Common;
 using ZeeDash.API.Grains.Domains.AccessControl;
 using ZeeDash.API.Grains.Domains.AccessControl.Events;
@@ -106,12 +107,12 @@ public partial class TenantGrain
     /// <param name="level">The level of the user on the tenant</param>
     /// <returns>The user as member</returns>
     private async Task<Member> SetMembershipAsync(UserId userId, AccessLevel level) {
-        var member = this.manageableService.SetMember(this.State, userId, level);
-
         var membershipId = new MembershipId(this.State.Id);
-        await this.accessControlService.AddMembershipAsync(membershipId, userId, level);
 
+        var member = this.manageableService.SetMember(this.State, userId, level);
         await this.WriteStateAsync();
+
+        await this.accessControlService.AddMembershipAsync(membershipId, userId, level);
         await this.RefreshAccessControlViewAsync();
 
         await this.GetStreamProvider(StreamProviderName.Membership)

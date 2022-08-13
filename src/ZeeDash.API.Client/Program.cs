@@ -1,5 +1,6 @@
 namespace ZeeDash.API.Client;
 
+using Bogus;
 using Microsoft.Extensions.Hosting;
 using Orleans;
 using Orleans.Configuration;
@@ -7,8 +8,10 @@ using Orleans.Hosting;
 using Orleans.Runtime;
 using Orleans.Streams;
 using ZeeDash.API.Abstractions.Constants;
+using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
+using ZeeDash.API.Abstractions.Grains;
 using ZeeDash.API.Abstractions.Grains.Legacy;
 
 public static class Program {
@@ -21,12 +24,45 @@ public static class Program {
             // Set a trace ID, so that requests can be identified.
             RequestContext.Set("TraceId", Guid.NewGuid());
 
-            var tenantId = new TenantId();// "zrn:zeedash:tenant/01G88YKQZVA87R0HKNC8J3ZDR0");
+            var faker = new Faker();
+
+            var ownerId = new UserId();
+            var contributorsIds = new UserId[3] {
+                new UserId(), new UserId(), new UserId()
+            };
+            var readerId = new UserId();
+
+            var groupId = new GroupId();
+
+            var owner = clusterClient.GetGrain<IUserGrain>(ownerId.Value);
+            await owner.CreateAsync(faker.Person.FullName, faker.Person.Email);
+
+
+            var tenantId = new TenantId(ownerId);
             var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tenantId.Value);
-            var readerId = UserId.Parse("zrn:zeedash:user/01G88YV82PHHDBGTR4T00MNB2H");
-            var ownerId = UserId.Parse("zrn:zeedash:user/01G8TJJ5F6FSD2TXZQAWN2TBMB");
-            await tenantGrain.CreateAsync("Salut ma poule !", TenantTypes.Personal, ownerId);
-            await tenantGrain.SetReaderAsync(readerId);
+            var tenant = await tenantGrain.GetAsync();
+
+            var tenantMembershipId = new MembershipId(tenantId);
+            var tenantMembership = clusterClient.GetGrain<IMembershipGrain>(tenantMembershipId.Value);
+            var members = await tenantMembership.GetMembersAsync();
+
+
+
+
+
+            var contributors = contributorsIds.Select(id => clusterClient.GetGrain<IUserGrain>(id.Value));
+            foreach (var contributor in contributors) {
+                await contributor.CreateAsync(faker.Person.FullName, faker.Person.Email);
+            }
+
+            var reader = clusterClient.GetGrain<IUserGrain>(readerId.Value);
+            await reader.CreateAsync(faker.Person.FullName, faker.Person.Email);
+
+            var group = clusterClient.GetGrain<IGroupGrain>(groupId.Value);
+            await group.CreateAsync("Contributors");
+            foreach (var contributorId in contributorsIds) {
+                await group.AddUserAsync(contributorId);
+            }
 
             //            var tenants = Enumerable.Range(0, 100)
             //                .Select(i => new TenantId())

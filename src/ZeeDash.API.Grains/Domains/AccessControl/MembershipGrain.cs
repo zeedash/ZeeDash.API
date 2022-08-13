@@ -10,7 +10,6 @@ using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains;
-using ZeeDash.API.Abstractions.Grains.Common;
 using ZeeDash.API.Grains.Domains.AccessControl.Events;
 using ZeeDash.API.Grains.Services;
 
@@ -46,7 +45,7 @@ public partial class MembershipGrain
             this.State.Id = MembershipId.Parse(this.GetPrimaryKeyString());
         }
 
-        await ((IMembershipView)this).RefreshAsync();
+        await ((IMembershipGrain)this).RefreshAsync();
 
         // Subscribe to parents activities
         var streamProvider = this.GetStreamProvider(StreamProviderName.Membership);
@@ -90,17 +89,17 @@ public partial class MembershipGrain
 
     private async Task OnTenantUpdateAsync(OnTenantUpdate onUpdate, StreamSequenceToken token) {
         this.logger.OnTenantUpdate(onUpdate.TenantId.Value);
-        await ((IMembershipView)this).RefreshAsync();
+        await ((IMembershipGrain)this).RefreshAsync();
     }
 
     private async Task OnBusinessUnitUpdateAsync(OnBusinessUnitUpdate onUpdate, StreamSequenceToken token) {
         this.logger.OnBusinessUnitUpdate(onUpdate.BusinessUnitId.Value);
-        await ((IMembershipView)this).RefreshAsync();
+        await ((IMembershipGrain)this).RefreshAsync();
     }
 
     private async Task OnDashboardUpdateAsync(OnDashboardUpdate onUpdate, StreamSequenceToken token) {
         this.logger.OnDashboardUpdate(onUpdate.DashboardId.Value);
-        await ((IMembershipView)this).RefreshAsync();
+        await ((IMembershipGrain)this).RefreshAsync();
     }
 
     #endregion Subscription Handlers
@@ -130,12 +129,16 @@ public partial class MembershipGrain
     async Task IMembershipGrain.RefreshAsync() {
         var members = await this.accessControlService.GetMembersAsync(this.State.Id);
 
+        // TODO : There is a deadlock here, find a way to kill it (design session ?)
+
         // Retreive user infos
         var userIds = members
             .Where(member => member.IsUser)
             .Select(member => UserId.Parse(member.MemberId));
 
-        var getUserTasks = userIds.Select(id => this.GrainFactory.GetGrain<IUserGrain>(id.Value).GetAsync());
+        var getUserTasks = userIds
+            .Select(id => this.GrainFactory.GetGrain<IUserGrain>(id.Value).GetAsync())
+            .ToList();
         await Task.WhenAll(getUserTasks);
         var users = getUserTasks.Select(t => t.Result).ToDictionary(user => user.Id.Value, user => user);
 

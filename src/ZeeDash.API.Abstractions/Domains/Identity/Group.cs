@@ -14,9 +14,4 @@ public class Group {
     /// Name of the group
     /// </summary>
     public string Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// List of all users belonging to the group
-    /// </summary>
-    public List<UserId> Users { get; set; } = new();
 }

@@ -1,9 +1,9 @@
-namespace ZeeDash.API.Abstractions.Domains.Tenants;
+namespace ZeeDash.API.Abstractions.Grains;
 
 using System.Threading.Tasks;
 using Orleans;
 using ZeeDash.API.Abstractions.Domains.Identity;
-using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains.Common;
 
 public interface ITenantGrain : IGrainWithStringKey, IGrainMembership, IGrainWithDashboards {
