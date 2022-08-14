@@ -12,7 +12,7 @@ public class Membership {
     /// <summary>
     /// Get if the current membership relate to a user
     /// </summary>
-    public bool IsUser => this.User?.Id?.IsEmpty ?? false;
+    public bool IsUser => !this.User?.Id?.IsEmpty ?? false;
 
     /// <summary>
     /// The Group of users represented by the membership
@@ -22,7 +22,20 @@ public class Membership {
     /// <summary>
     /// Get if the current membership relate to a group of users
     /// </summary>
-    public bool IsGroup => this.Group?.Id?.IsEmpty ?? false;
+    public bool IsGroup => !this.Group?.Id?.IsEmpty ?? false;
+
+    /// <summary>
+    /// The member raw identifier
+    /// </summary>
+    public string MemberId {
+        get {
+            if (this.IsGroup) {
+                return this.Group?.Id?.Value ?? GroupId.Empty.Value;
+            } else {
+                return this.User?.Id?.Value ?? UserId.Empty.Value;
+            }
+        }
+    }
 
     /// <summary>
     /// The access level of the member

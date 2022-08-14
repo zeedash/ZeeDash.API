@@ -14,6 +14,10 @@ public interface IAccessControlService {
 
     Task<List<AccessControlMember>> GetMembersAsync(MembershipId id);
 
+    Task CreateMemberAsync(UserId userId);
+
+    Task CreateMemberAsync(GroupId groupId);
+
     Task AddMembershipAsync(MembershipId id, UserId userId, AccessLevel level);
 
     Task AddMembershipAsync(MembershipId id, GroupId groupId, AccessLevel level);
@@ -32,6 +36,7 @@ public interface IAccessControlService {
 public class AccessControlService
     : Disposable<AccessControlService>
     , IAccessControlService {
+    private const string GraphDBName = "iam";
     private RedisGraph? graph;
 
     public AccessControlService(IConnectionMultiplexer mux) {
@@ -51,12 +56,11 @@ public class AccessControlService
     async Task<List<AccessControlMember>> IAccessControlService.GetMembersAsync(MembershipId id) {
         this.EnsureIsNotDisposed();
 
-        var graphDd = $"iam-{id.TenantId.AsUlid()}";
         var relatedTo = id.IsRelatedTo;
         var query = GetMembersQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
 
         var parameters = new Dictionary<string, object> { { "id", id.ParentValue } };
-        var result = await this.graph!.GraphReadOnlyQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphReadOnlyQueryAsync(GraphDBName, query, parameters);
         return result.Select(r => new AccessControlMember {
             MemberId = r.GetString("m.id"),
             Level = r.GetString("r.level").AsAccessLevel(),
@@ -68,15 +72,13 @@ public class AccessControlService
         "MATCH (m:Member { id: $id })" + Environment.NewLine +
         "RETURN m.id";
 
-    private async Task<bool> DoesMemberExistsAsync(MembershipId id, string memberIdValue) {
+    private async Task<bool> DoesMemberExistsAsync(string memberIdValue) {
         this.EnsureIsNotDisposed();
 
-        var graphDd = $"iam-{id.TenantId.AsUlid()}";
-        var relatedTo = id.IsRelatedTo;
         var query = DoesMemberExistsQueryTemplate;
 
         var parameters = new Dictionary<string, object> { { "id", memberIdValue } };
-        var result = await this.graph!.GraphReadOnlyQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphReadOnlyQueryAsync(GraphDBName, query, parameters);
         return result.Count > 0;
     }
 
@@ -100,12 +102,11 @@ public class AccessControlService
     private async Task AddMembershipAsync(MembershipId id, string memberIdValue, string memberType, AccessLevel level) {
         this.EnsureIsNotDisposed();
 
-        var exists = await this.DoesMemberExistsAsync(id, memberIdValue);
+        var exists = await this.DoesMemberExistsAsync(memberIdValue);
         if (!exists) {
-            await this.CreateMemberAsync(id.TenantId.AsUlid(), memberIdValue, nameof(User));
+            await this.CreateMemberAsync(memberIdValue, nameof(User));
         }
 
-        var graphDd = $"iam-{id.TenantId.AsUlid()}";
         var relatedTo = id.IsRelatedTo;
         var query = AddMembershipQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
 
@@ -116,7 +117,7 @@ public class AccessControlService
             { "level", level.ToString() },
             { "relatedTo", relatedTo}
         };
-        var result = await this.graph!.GraphQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
         if (result.Statistics.RelationshipsCreated != 1) {
             // TODO : Add Signal to mark incoherence on graph databse
@@ -140,14 +141,13 @@ public class AccessControlService
     }
 
     private async Task RemoveMembershipAsync(MembershipId id, string idValue) {
-        var graphDd = $"iam-{id.TenantId.AsUlid()}";
         var relatedTo = id.IsRelatedTo;
         var query = DeleteMembershipQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
 
         var parameters = new Dictionary<string, object> {
             { "id", idValue },
         };
-        var result = await this.graph!.GraphQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
         if (result.Statistics.NodesDeleted != 1) {
             // TODO : Add Signal to mark incoherence on graph databse
@@ -157,38 +157,37 @@ public class AccessControlService
     async Task IAccessControlService.CreateTenantAsync(TenantId id) {
         this.EnsureIsNotDisposed();
 
-        await this.CreateAsync(id.AsUlid(), nameof(Tenant), id.Value);
+        await this.CreateAsync(nameof(Tenant), id.Value);
     }
 
     async Task IAccessControlService.CreateBusinessUnitAsync(BusinessUnitId id) {
         this.EnsureIsNotDisposed();
 
-        await this.CreateAsync(id.TenantId.AsUlid(), nameof(BusinessUnit), id.Value);
-        await this.AddBelongshipAsync(id.TenantId.AsUlid(), nameof(Tenant), id.TenantId.Value, nameof(BusinessUnit), id.Value);
+        await this.CreateAsync(nameof(BusinessUnit), id.Value);
+        await this.AddBelongshipAsync(nameof(Tenant), id.TenantId.Value, nameof(BusinessUnit), id.Value);
     }
 
     async Task IAccessControlService.CreateDashboardAsync(DashboardId id) {
         this.EnsureIsNotDisposed();
 
-        await this.CreateAsync(id.TenantId.AsUlid(), nameof(Dashboard), id.Value);
+        await this.CreateAsync(nameof(Dashboard), id.Value);
         if (id.BusinessUnitId.IsEmpty) {
-            await this.AddBelongshipAsync(id.TenantId.AsUlid(), nameof(Tenant), id.TenantId.Value, nameof(Dashboard), id.Value);
+            await this.AddBelongshipAsync(nameof(Tenant), id.TenantId.Value, nameof(Dashboard), id.Value);
         } else {
-            await this.AddBelongshipAsync(id.TenantId.AsUlid(), nameof(BusinessUnit), id.BusinessUnitId.Value, nameof(Dashboard), id.Value);
+            await this.AddBelongshipAsync(nameof(BusinessUnit), id.BusinessUnitId.Value, nameof(Dashboard), id.Value);
         }
     }
 
     private const string CreateQueryTemplate =
         "CREATE (i:@@ITEM_TYPE@@ { id: $id })";
 
-    private async Task CreateAsync(Ulid tenantId, string relatedTo, string itemId) {
-        var graphDd = $"iam-{tenantId}";
+    private async Task CreateAsync(string relatedTo, string itemId) {
         var query = CreateQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
 
         var parameters = new Dictionary<string, object> {
             { "id", itemId },
         };
-        var result = await this.graph!.GraphQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
         if (result.Statistics.NodesCreated != 1) {
             // TODO : Add Signal to mark incoherence on graph databse
@@ -198,15 +197,14 @@ public class AccessControlService
     private const string CreateMemberQueryTemplate =
         "CREATE (m:Member { id: $id, type: $memberType })";
 
-    private async Task CreateMemberAsync(Ulid tenantId, string memberId, string memberType) {
-        var graphDd = $"iam-{tenantId}";
+    private async Task CreateMemberAsync(string memberId, string memberType) {
         var query = CreateMemberQueryTemplate;
 
         var parameters = new Dictionary<string, object> {
             { "id", memberId },
             { "memberType", memberType },
         };
-        var result = await this.graph!.GraphQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
         if (result.Statistics.NodesCreated != 1) {
             // TODO : Add Signal to mark incoherence on graph databse
@@ -216,10 +214,9 @@ public class AccessControlService
     private static readonly string AddBelongshipQueryTemplate =
         "MATCH (s:@@SOURCE_TYPE@@ { id: $sourceId })" + Environment.NewLine +
         "MATCH (t:@@TARGET_TYPE@@ { id: $targetId })" + Environment.NewLine +
-        "CREATE (s)-[:BELONGS_TO]->(b)";
+        "CREATE (t)-[:BELONGS_TO]->(s)";
 
-    private async Task AddBelongshipAsync(Ulid tenantId, string relatedToSource, string sourceId, string relatedToTarget, string targetId) {
-        var graphDd = $"iam-{tenantId}";
+    private async Task AddBelongshipAsync(string relatedToSource, string sourceId, string relatedToTarget, string targetId) {
         var query = AddBelongshipQueryTemplate
             .Replace("@@SOURCE_TYPE@@", relatedToSource, StringComparison.Ordinal)
             .Replace("@@TARGET_TYPE@@", relatedToTarget, StringComparison.Ordinal);
@@ -228,10 +225,22 @@ public class AccessControlService
             { "sourceId", sourceId },
             { "targetId", targetId },
         };
-        var result = await this.graph!.GraphQueryAsync(graphDd, query, parameters);
+        var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
         if (result.Statistics.RelationshipsCreated != 1) {
             // TODO : Add Signal to mark incoherence on graph databse
         }
+    }
+
+    async Task IAccessControlService.CreateMemberAsync(UserId userId) {
+        this.EnsureIsNotDisposed();
+
+        await this.CreateMemberAsync(userId.Value, nameof(User));
+    }
+
+    async Task IAccessControlService.CreateMemberAsync(GroupId groupId) {
+        this.EnsureIsNotDisposed();
+
+        await this.CreateMemberAsync(groupId.Value, nameof(Group));
     }
 }

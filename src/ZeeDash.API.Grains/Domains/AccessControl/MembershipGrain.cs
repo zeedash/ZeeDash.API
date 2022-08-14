@@ -159,7 +159,7 @@ public partial class MembershipGrain
             .Where(member => !member.IsUser)
             .Select(member => GroupId.Parse(member.MemberId));
 
-        var getGroupTasks = userIds.Select(id => this.GrainFactory.GetGrain<IGroupGrain>(id.Value).GetAsync());
+        var getGroupTasks = groupIds.Select(id => this.GrainFactory.GetGrain<IGroupGrain>(id.Value).GetAsync());
         await Task.WhenAll(getGroupTasks);
         var groups = getGroupTasks.Select(t => t.Result).ToDictionary(group => group.Id.Value, group => group);
 

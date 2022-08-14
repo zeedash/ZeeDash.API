@@ -36,15 +36,16 @@ public class BusinessUnitId
 
     public static BusinessUnitId Parse(string identityString) {
         var index = identityString.IndexOf(URNs.BusinessUnitTemplate, StringComparison.OrdinalIgnoreCase);
-        var textSize = identityString.Length - index - URNs.TenantTemplate.Length;
+        var textSize = identityString.Length - index - URNs.BusinessUnitTemplate.Length;
         if (textSize != 26) { // 26 == Ulid.ToString().Length
-            throw new ZrnFormatException(identityString, nameof(TenantId));
+            throw new ZrnFormatException(identityString, nameof(BusinessUnitId));
         }
 
-        var tenantUlidString = identityString.AsSpan(index - 26, 26);
-        if (Ulid.TryParse(tenantUlidString, out var tenantUlidValue)) {
-            var businessUnitUlidString = identityString.AsSpan(index + URNs.BusinessUnitTemplate.Length);
-            if (Ulid.TryParse(businessUnitUlidString, out var businessUnitUlidValue)) {
+        var businessUnitUlidString = identityString.AsSpan(index + URNs.BusinessUnitTemplate.Length, 26);
+        if (Ulid.TryParse(businessUnitUlidString, out var businessUnitUlidValue)) {
+            var tenantIndex = identityString.IndexOf(URNs.TenantTemplate, StringComparison.OrdinalIgnoreCase);
+            var tenantUlidString = identityString.AsSpan(tenantIndex + URNs.TenantTemplate.Length, 26);
+            if (Ulid.TryParse(tenantUlidString, out var tenantUlidValue)) {
                 return new BusinessUnitId(tenantUlidValue, businessUnitUlidValue);
             }
         }

@@ -6,11 +6,26 @@ using System.Threading.Tasks;
 using Orleans;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Grains.Services;
 
 public partial class GroupGrain
     : Grain<GroupState>
     , IGroupGrain
     , IIncomingGrainCallFilter {
+
+    #region Private Fields
+
+    private readonly IAccessControlService accessControlService;
+
+    #endregion Private Fields
+
+    #region Ctor.Dtor
+
+    public GroupGrain(IAccessControlService accessControlService) {
+        this.accessControlService = accessControlService;
+    }
+
+    #endregion Ctor.Dtor
 
     #region Private Methods
 
@@ -51,6 +66,8 @@ public partial class GroupGrain
         this.State.Id = GroupId.Parse(this.GetPrimaryKeyString());
         this.State.Name = name;
         await this.WriteStateAsync();
+
+        await this.accessControlService.CreateMemberAsync(this.State.Id);
 
         return this.MapStateToGroup();
     }

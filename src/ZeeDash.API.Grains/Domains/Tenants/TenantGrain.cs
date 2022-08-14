@@ -22,7 +22,7 @@ public partial class TenantGrain
     #region Private Fields
 
     private readonly IAccessControlService accessControlService;
-    private readonly IMembershipService manageableService;
+    private readonly IMembershipService membershipService;
 
     #endregion Private Fields
 
@@ -30,9 +30,9 @@ public partial class TenantGrain
 
     public TenantGrain(
         IAccessControlService accessControlService,
-        IMembershipService manageableService) {
+        IMembershipService membershipService) {
         this.accessControlService = accessControlService;
-        this.manageableService = manageableService;
+        this.membershipService = membershipService;
     }
 
     #endregion Ctor.Dtor
@@ -71,31 +71,30 @@ public partial class TenantGrain
 
     #endregion IIncomingGrainCallFilter
 
-    #region IGrainMembership
+    #region IGrainMembership<UserId>
 
     /// <inheritdoc/>
-    Task<Member> IGrainMembership.SetContributorAsync(UserId userId) {
+    Task<Member> IGrainMembership<UserId>.SetContributorAsync(UserId userId) {
         return this.SetMembershipAsync(userId, AccessLevel.Contributor);
     }
 
     /// <inheritdoc/>
-    Task<Member> IGrainMembership.SetOwnerAsync(UserId userId) {
+    Task<Member> IGrainMembership<UserId>.SetOwnerAsync(UserId userId) {
         return this.SetMembershipAsync(userId, AccessLevel.Owner);
     }
 
     /// <inheritdoc/>
-    Task<Member> IGrainMembership.SetReaderAsync(UserId userId) {
+    Task<Member> IGrainMembership<UserId>.SetReaderAsync(UserId userId) {
         return this.SetMembershipAsync(userId, AccessLevel.Reader);
     }
 
     /// <inheritdoc/>
-    async Task<Member> IGrainMembership.RemoveMemberAsync(UserId userId) {
-        var member = this.manageableService.RemoveMember(this.State, userId);
+    async Task<Member> IGrainMembership<UserId>.RemoveMemberAsync(UserId userId) {
+        var member = this.membershipService.RemoveMember(this.State, userId);
 
         var membershipId = new MembershipId(this.State.Id);
         await this.accessControlService.RemoveMembershipAsync(membershipId, userId);
         await this.WriteStateAsync();
-        await this.RefreshAccessControlViewAsync();
 
         return member;
     }
@@ -109,11 +108,10 @@ public partial class TenantGrain
     private async Task<Member> SetMembershipAsync(UserId userId, AccessLevel level) {
         var membershipId = new MembershipId(this.State.Id);
 
-        var member = this.manageableService.SetMember(this.State, userId, level);
+        var member = this.membershipService.SetMember(this.State, userId, level);
         await this.WriteStateAsync();
 
         await this.accessControlService.AddMembershipAsync(membershipId, userId, level);
-        await this.RefreshAccessControlViewAsync();
 
         await this.GetStreamProvider(StreamProviderName.Membership)
             .GetStream<OnTenantUpdate>(this.State.Id.AsGuid(), StreamName.Membership.OnTenantUpdate)
@@ -122,14 +120,58 @@ public partial class TenantGrain
         return member;
     }
 
-    private async Task RefreshAccessControlViewAsync() {
-        var membershipId = new MembershipId(this.State.Id);
-        var membership = this.GrainFactory.GetGrain<IMembershipGrain>(membershipId.Value);
-        await membership.RefreshAsync();
-        await Task.CompletedTask;
+    #endregion IGrainMembership<UserId>
+
+    #region IGrainMembership<GroupId>
+
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership<GroupId>.SetContributorAsync(GroupId groupId) {
+        return this.SetMembershipAsync(groupId, AccessLevel.Contributor);
     }
 
-    #endregion IGrainMembership
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership<GroupId>.SetOwnerAsync(GroupId groupId) {
+        return this.SetMembershipAsync(groupId, AccessLevel.Owner);
+    }
+
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership<GroupId>.SetReaderAsync(GroupId groupId) {
+        return this.SetMembershipAsync(groupId, AccessLevel.Reader);
+    }
+
+    /// <inheritdoc/>
+    async Task<Member> IGrainMembership<GroupId>.RemoveMemberAsync(GroupId groupId) {
+        var member = this.membershipService.RemoveMember(this.State, groupId);
+
+        var membershipId = new MembershipId(this.State.Id);
+        await this.accessControlService.RemoveMembershipAsync(membershipId, groupId);
+        await this.WriteStateAsync();
+
+        return member;
+    }
+
+    /// <summary>
+    /// Apply membership to a Group on the tenant
+    /// </summary>
+    /// <param name="groupId">The GroupId to manage</param>
+    /// <param name="level">The level of the Group on the tenant</param>
+    /// <returns>The Group as member</returns>
+    private async Task<Member> SetMembershipAsync(GroupId groupId, AccessLevel level) {
+        var membershipId = new MembershipId(this.State.Id);
+
+        var member = this.membershipService.SetMember(this.State, groupId, level);
+        await this.WriteStateAsync();
+
+        await this.accessControlService.AddMembershipAsync(membershipId, groupId, level);
+
+        await this.GetStreamProvider(StreamProviderName.Membership)
+            .GetStream<OnTenantUpdate>(this.State.Id.AsGuid(), StreamName.Membership.OnTenantUpdate)
+            .OnNextAsync(new OnTenantUpdate(this.State.Id, groupId, level));
+
+        return member;
+    }
+
+    #endregion IGrainMembership<GroupId>
 
     #region IGrainWithDashboards
 

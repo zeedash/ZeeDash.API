@@ -6,11 +6,26 @@ using Orleans;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains;
+using ZeeDash.API.Grains.Services;
 
 public partial class UserGrain
     : Grain<UserState>
     , IUserGrain
     , IIncomingGrainCallFilter {
+
+    #region Private Fields
+
+    private readonly IAccessControlService accessControlService;
+
+    #endregion Private Fields
+
+    #region Ctor.Dtor
+
+    public UserGrain(IAccessControlService accessControlService) {
+        this.accessControlService = accessControlService;
+    }
+
+    #endregion Ctor.Dtor
 
     #region Private Methods
 
@@ -53,6 +68,8 @@ public partial class UserGrain
         this.State.FullName = fullName;
         this.State.Email = email;
         await this.WriteStateAsync();
+
+        await this.accessControlService.CreateMemberAsync(this.State.Id);
 
         var tenantId = new TenantId(this.State.Id);
         var tenant = this.GrainFactory.GetGrain<ITenantGrain>(tenantId.Value);

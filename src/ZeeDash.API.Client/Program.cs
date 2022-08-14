@@ -37,7 +37,6 @@ public static class Program {
             var owner = clusterClient.GetGrain<IUserGrain>(ownerId.Value);
             await owner.CreateAsync(faker.Person.FullName, faker.Person.Email);
 
-
             var tenantId = new TenantId(ownerId);
             var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tenantId.Value);
             var tenant = await tenantGrain.GetAsync();
@@ -45,10 +44,6 @@ public static class Program {
             var tenantMembershipId = new MembershipId(tenantId);
             var tenantMembership = clusterClient.GetGrain<IMembershipGrain>(tenantMembershipId.Value);
             var members = await tenantMembership.GetMembersAsync();
-
-
-
-
 
             var contributors = contributorsIds.Select(id => clusterClient.GetGrain<IUserGrain>(id.Value));
             foreach (var contributor in contributors) {
@@ -63,6 +58,15 @@ public static class Program {
             foreach (var contributorId in contributorsIds) {
                 await group.AddUserAsync(contributorId);
             }
+
+            var businessUnitId = new BusinessUnitId(tenantId);
+            var businessUnitGrain = clusterClient.GetGrain<IBusinessUnitGrain>(businessUnitId.Value);
+            var businessUnit = await businessUnitGrain.CreateAsync(faker.Commerce.ProductName());
+            await businessUnitGrain.SetContributorAsync(groupId);
+
+            var businessUnitMembershipId = new MembershipId(businessUnitId);
+            var businessUnitMembership = clusterClient.GetGrain<IMembershipGrain>(businessUnitMembershipId.Value);
+            var businessUnitMembers = await businessUnitMembership.GetMembersAsync();
 
             //            var tenants = Enumerable.Range(0, 100)
             //                .Select(i => new TenantId())

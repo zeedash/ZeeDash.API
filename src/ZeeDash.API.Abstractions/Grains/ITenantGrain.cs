@@ -6,7 +6,10 @@ using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Grains.Common;
 
-public interface ITenantGrain : IGrainWithStringKey, IGrainMembership, IGrainWithDashboards {
+public interface ITenantGrain
+    : IGrainWithStringKey
+    , IGrainMembership
+    , IGrainWithDashboards {
 
     Task<Tenant> CreateAsync(string name, TenantTypes type, UserId ownerId);
 
