@@ -12,11 +12,17 @@ public class DashboardId
     public DashboardId(TenantId tenantId)
         : this(tenantId.AsUlid(), Ulid.Empty, Ulid.NewUlid()) { }
 
+    public DashboardId(BusinessUnitId businessUnitId)
+        : this(businessUnitId.TenantId.AsUlid(), businessUnitId.AsUlid(), Ulid.NewUlid()) { }
+
     public DashboardId(Ulid tenantValue, Ulid dashboardValue)
         : this(tenantValue, Ulid.Empty, dashboardValue) { }
 
     public DashboardId(Ulid tenantValue, Ulid businessUnitValue, Ulid dashboardValue)
-        : base(string.Format(URNs.DashboardZRN, tenantValue, dashboardValue)) {
+        : base(businessUnitValue == Ulid.Empty
+              ? string.Format(URNs.DashboardZRN, tenantValue, dashboardValue)
+              : string.Format(URNs.DashboardBusinessUnitZRN, tenantValue, businessUnitValue, dashboardValue)
+        ) {
         this.IsEmpty = tenantValue == Ulid.Empty || dashboardValue == Ulid.Empty;
         this.TenantId = new TenantId(tenantValue);
         this.BusinessUnitId = new BusinessUnitId(tenantValue, businessUnitValue);
@@ -40,7 +46,7 @@ public class DashboardId
 
     public static DashboardId Parse(string identityString) {
         var dashboardIdIndex = identityString.IndexOf(URNs.DashboardTemplate, StringComparison.OrdinalIgnoreCase);
-        var textSize = identityString.Length - dashboardIdIndex - URNs.TenantTemplate.Length;
+        var textSize = identityString.Length - dashboardIdIndex - URNs.DashboardTemplate.Length;
         if (textSize != 26) { // 26 == Ulid.ToString().Length
             throw new ZrnFormatException(identityString, nameof(TenantId));
         }

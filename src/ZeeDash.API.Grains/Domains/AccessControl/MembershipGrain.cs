@@ -24,6 +24,7 @@ public partial class MembershipGrain
     private StreamSubscriptionHandle<OnTenantUpdate>? tenantUpdateSubscription;
     private StreamSubscriptionHandle<OnBusinessUnitUpdate>? businessUnitUpdateSubscription;
     private StreamSubscriptionHandle<OnDashboardUpdate>? dashboardUpdateSubscription;
+    private StreamSubscriptionHandle<OnGroupUpdate>? groupUpdateSubscription;
 
     #endregion Private Fields
 
@@ -65,19 +66,28 @@ public partial class MembershipGrain
                 .SubscribeAsync(this.OnDashboardUpdateAsync);
         }
 
+        if (!this.State.Id.GroupId.IsEmpty) {
+            this.groupUpdateSubscription = await streamProvider
+                .GetStream<OnGroupUpdate>(this.State.Id.GroupId.AsGuid(), StreamName.Membership.OnGroupUpdate)
+                .SubscribeAsync(this.OnGroupUpdateAsync);
+        }
+
         await base.OnActivateAsync();
     }
 
     public override async Task OnDeactivateAsync() {
         // Unsubscribe from all active subscription
         if (this.tenantUpdateSubscription != null) {
-            await this.tenantUpdateSubscription.UnsubscribeAsync().ConfigureAwait(false);
+            await this.tenantUpdateSubscription.UnsubscribeAsync();
         }
         if (this.businessUnitUpdateSubscription != null) {
-            await this.businessUnitUpdateSubscription.UnsubscribeAsync().ConfigureAwait(false);
+            await this.businessUnitUpdateSubscription.UnsubscribeAsync();
         }
         if (this.dashboardUpdateSubscription != null) {
-            await this.dashboardUpdateSubscription.UnsubscribeAsync().ConfigureAwait(false);
+            await this.dashboardUpdateSubscription.UnsubscribeAsync();
+        }
+        if (this.groupUpdateSubscription != null) {
+            await this.groupUpdateSubscription.UnsubscribeAsync();
         }
 
         await base.OnDeactivateAsync();
@@ -99,6 +109,11 @@ public partial class MembershipGrain
 
     private async Task OnDashboardUpdateAsync(OnDashboardUpdate onUpdate, StreamSequenceToken token) {
         this.logger.OnDashboardUpdate(onUpdate.DashboardId.Value);
+        await ((IMembershipGrain)this).RefreshAsync();
+    }
+
+    private async Task OnGroupUpdateAsync(OnGroupUpdate onUpdate, StreamSequenceToken token) {
+        this.logger.OnGroupUpdate(onUpdate.GroupId.Value);
         await ((IMembershipGrain)this).RefreshAsync();
     }
 
@@ -209,4 +224,12 @@ internal static partial class LoggerExtensions {
     public static partial void OnDashboardUpdate(
         this ILogger logger,
         string dashboardZRN);
+
+    [LoggerMessage(
+        EventId = 5103,
+        Level = LogLevel.Information,
+        Message = "Group '{groupZRN}' has been updated. Membership view must be updated")]
+    public static partial void OnGroupUpdate(
+        this ILogger logger,
+        string groupZRN);
 }

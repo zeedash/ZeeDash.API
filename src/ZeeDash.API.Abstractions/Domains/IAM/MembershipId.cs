@@ -3,6 +3,7 @@ namespace ZeeDash.API.Abstractions.Domains.IAM;
 using System;
 using ZeeDash.API.Abstractions.Constants;
 using ZeeDash.API.Abstractions.Domains.Dashboards;
+using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
 using ZeeDash.API.Abstractions.Exceptions;
 
@@ -18,6 +19,7 @@ public class MembershipId
         this.TenantId = tenantId;
         this.BusinessUnitId = BusinessUnitId.Empty;
         this.DashboardId = DashboardId.Empty;
+        this.GroupId = GroupId.Empty;
     }
 
     public MembershipId(BusinessUnitId businessUnitId)
@@ -26,6 +28,7 @@ public class MembershipId
         this.TenantId = businessUnitId.TenantId;
         this.BusinessUnitId = businessUnitId;
         this.DashboardId = DashboardId.Empty;
+        this.GroupId = GroupId.Empty;
     }
 
     public MembershipId(DashboardId dashboardId)
@@ -34,6 +37,16 @@ public class MembershipId
         this.TenantId = dashboardId.TenantId;
         this.BusinessUnitId = dashboardId.BusinessUnitId;
         this.DashboardId = dashboardId;
+        this.GroupId = GroupId.Empty;
+    }
+
+    public MembershipId(GroupId groupId)
+        : base(string.Format(URNs.MembershipZRN, groupId.Value)) {
+        this.IsEmpty = groupId.IsEmpty;
+        this.TenantId = groupId.TenantId;
+        this.BusinessUnitId = BusinessUnitId.Empty;
+        this.DashboardId = DashboardId.Empty;
+        this.GroupId = groupId;
     }
 
     public static MembershipId Empty => new(TenantId.Empty);
@@ -42,6 +55,7 @@ public class MembershipId
     public TenantId TenantId { get; init; }
     public BusinessUnitId BusinessUnitId { get; init; }
     public DashboardId DashboardId { get; init; }
+    public GroupId GroupId { get; init; }
 
     public string IsRelatedTo {
         get {
@@ -51,6 +65,10 @@ public class MembershipId
 
             if (!this.BusinessUnitId.IsEmpty) {
                 return nameof(BusinessUnit);
+            }
+
+            if (!this.GroupId.IsEmpty) {
+                return nameof(Group);
             }
 
             if (!this.TenantId.IsEmpty) {
@@ -69,6 +87,10 @@ public class MembershipId
 
             if (!this.BusinessUnitId.IsEmpty) {
                 return this.BusinessUnitId.Value;
+            }
+
+            if (!this.GroupId.IsEmpty) {
+                return this.GroupId.Value;
             }
 
             if (!this.TenantId.IsEmpty) {
@@ -94,6 +116,10 @@ public class MembershipId
 
         if (identityString.Contains(URNs.BusinessUnitTemplate)) {
             return new MembershipId(BusinessUnitId.Parse(identifier));
+        }
+
+        if (identityString.Contains(URNs.GroupTemplate)) {
+            return new MembershipId(GroupId.Parse(identifier));
         }
 
         if (identityString.Contains(URNs.TenantTemplate)) {

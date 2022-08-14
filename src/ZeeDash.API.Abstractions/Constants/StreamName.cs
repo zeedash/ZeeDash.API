@@ -8,5 +8,6 @@ public static class StreamName {
         public const string OnTenantUpdate = $"{nameof(Membership)}->{nameof(OnTenantUpdate)}";
         public const string OnBusinessUnitUpdate = $"{nameof(Membership)}->{nameof(OnBusinessUnitUpdate)}";
         public const string OnDashboardUpdate = $"{nameof(Membership)}->{nameof(OnDashboardUpdate)}";
+        public const string OnGroupUpdate = $"{nameof(Membership)}->{nameof(OnGroupUpdate)}";
     }
 }

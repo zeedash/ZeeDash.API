@@ -11,12 +11,13 @@ public static class URNs {
 
     public const string DashboardTemplate = ":dashboard/";
     public const string DashboardZRN = TenantZRN + DashboardTemplate + "{1}";
+    public const string DashboardBusinessUnitZRN = BusinessUnitZRN + DashboardTemplate + "{2}";
 
     public const string MembershipTemplate = "/membership";
     public const string MembershipZRN = "{0}" + MembershipTemplate;
 
     public const string GroupTemplate = ":group/";
-    public const string GroupZRN = ZRN + GroupTemplate + "{0}";
+    public const string GroupZRN = TenantZRN + GroupTemplate + "{1}";
 
     public const string UserTemplate = ":user/";
     public const string UserZRN = ZRN + UserTemplate + "{0}";

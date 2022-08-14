@@ -18,6 +18,8 @@ public interface IAccessControlService {
 
     Task CreateMemberAsync(GroupId groupId);
 
+    Task AddBelongshipAsync(TenantId tenantId, GroupId groupId);
+
     Task AddMembershipAsync(MembershipId id, UserId userId, AccessLevel level);
 
     Task AddMembershipAsync(MembershipId id, GroupId groupId, AccessLevel level);
@@ -100,14 +102,11 @@ public class AccessControlService
     }
 
     private async Task AddMembershipAsync(MembershipId id, string memberIdValue, string memberType, AccessLevel level) {
-        this.EnsureIsNotDisposed();
-
-        var exists = await this.DoesMemberExistsAsync(memberIdValue);
-        if (!exists) {
-            await this.CreateMemberAsync(memberIdValue, nameof(User));
-        }
-
         var relatedTo = id.IsRelatedTo;
+        // Note : Subtile hack there...
+        if (relatedTo == nameof(Group)) {
+            relatedTo = nameof(Member);
+        }
         var query = AddMembershipQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
 
         var parameters = new Dictionary<string, object> {
@@ -125,31 +124,36 @@ public class AccessControlService
     }
 
     private static readonly string DeleteMembershipQueryTemplate =
-        "MATCH (s:@@ITEM_TYPE@@ { id: $id })" + Environment.NewLine +
-        "DELETE s";
+        "MATCH (s:@@SOURCE_TYPE@@ { id: $sourceId })" + Environment.NewLine +
+        "MATCH (t:@@TARGET_TYPE@@ { id: $targetId })" + Environment.NewLine +
+        "MATCH (m)-[r:IS_MEMBER_OF]->(i)" + Environment.NewLine +
+        "DELETE r";
 
     async Task IAccessControlService.RemoveMembershipAsync(MembershipId id, UserId userId) {
         this.EnsureIsNotDisposed();
 
-        await this.RemoveMembershipAsync(id, userId.Value);
+        await this.RemoveMembershipAsync(id, nameof(User), userId.Value);
     }
 
     async Task IAccessControlService.RemoveMembershipAsync(MembershipId id, GroupId groupId) {
         this.EnsureIsNotDisposed();
 
-        await this.RemoveMembershipAsync(id, groupId.Value);
+        await this.RemoveMembershipAsync(id, nameof(Group), groupId.Value);
     }
 
-    private async Task RemoveMembershipAsync(MembershipId id, string idValue) {
+    private async Task RemoveMembershipAsync(MembershipId id, string relatedToTarget, string targetId) {
         var relatedTo = id.IsRelatedTo;
-        var query = DeleteMembershipQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
+        var query = DeleteMembershipQueryTemplate
+            .Replace("@@SOURCE_TYPE@@", relatedTo, StringComparison.Ordinal)
+            .Replace("@@TARGET_TYPE@@", relatedToTarget, StringComparison.Ordinal);
 
         var parameters = new Dictionary<string, object> {
-            { "id", idValue },
+            { "sourceId", id.Value },
+            { "targetId", targetId },
         };
         var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
-        if (result.Statistics.NodesDeleted != 1) {
+        if (result.Statistics.RelationshipsDeleted != 1) {
             // TODO : Add Signal to mark incoherence on graph databse
         }
     }
@@ -179,13 +183,14 @@ public class AccessControlService
     }
 
     private const string CreateQueryTemplate =
-        "CREATE (i:@@ITEM_TYPE@@ { id: $id })";
+        "CREATE (i:@@ITEM_TYPE@@ { id: $id, type: $memberType })";
 
     private async Task CreateAsync(string relatedTo, string itemId) {
         var query = CreateQueryTemplate.Replace("@@ITEM_TYPE@@", relatedTo, StringComparison.Ordinal);
 
         var parameters = new Dictionary<string, object> {
             { "id", itemId },
+            { "memberType", relatedTo },
         };
         var result = await this.graph!.GraphQueryAsync(GraphDBName, query, parameters);
 
@@ -242,5 +247,11 @@ public class AccessControlService
         this.EnsureIsNotDisposed();
 
         await this.CreateMemberAsync(groupId.Value, nameof(Group));
+    }
+
+    async Task IAccessControlService.AddBelongshipAsync(TenantId tenantId, GroupId groupId) {
+        this.EnsureIsNotDisposed();
+
+        await this.AddBelongshipAsync(nameof(Tenant), tenantId.Value, nameof(Member), groupId.Value);
     }
 }

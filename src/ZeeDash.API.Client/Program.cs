@@ -6,8 +6,9 @@ using Orleans;
 using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Runtime;
-using Orleans.Streams;
+using Xunit;
 using ZeeDash.API.Abstractions.Constants;
+using ZeeDash.API.Abstractions.Domains.Dashboards;
 using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Domains.Tenants;
@@ -18,6 +19,11 @@ public static class Program {
 
     public static async Task<int> Main() {
         try {
+            var tee = new TenantId();
+            var bee = new BusinessUnitId(tee);
+            var dee = new DashboardId(bee);
+            var doo = DashboardId.Parse(dee.Value);
+
             var clusterClient = CreateClientBuilder().Build();
             await clusterClient.Connect().ConfigureAwait(false);
 
@@ -32,18 +38,19 @@ public static class Program {
             };
             var readerId = new UserId();
 
-            var groupId = new GroupId();
 
             var owner = clusterClient.GetGrain<IUserGrain>(ownerId.Value);
             await owner.CreateAsync(faker.Person.FullName, faker.Person.Email);
 
-            var tenantId = new TenantId(ownerId);
+            var tenantId = new TenantId();
             var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tenantId.Value);
+            await tenantGrain.CreateAsync(faker.Company.CompanyName(), TenantTypes.Corporate, ownerId);
             var tenant = await tenantGrain.GetAsync();
 
             var tenantMembershipId = new MembershipId(tenantId);
             var tenantMembership = clusterClient.GetGrain<IMembershipGrain>(tenantMembershipId.Value);
-            var members = await tenantMembership.GetMembersAsync();
+            var tenantMembers = await tenantMembership.GetMembersAsync();
+            Assert.Equal(1, tenantMembers.Count);
 
             var contributors = contributorsIds.Select(id => clusterClient.GetGrain<IUserGrain>(id.Value));
             foreach (var contributor in contributors) {
@@ -53,10 +60,11 @@ public static class Program {
             var reader = clusterClient.GetGrain<IUserGrain>(readerId.Value);
             await reader.CreateAsync(faker.Person.FullName, faker.Person.Email);
 
+            var groupId = new GroupId(tenantId);
             var group = clusterClient.GetGrain<IGroupGrain>(groupId.Value);
             await group.CreateAsync("Contributors");
             foreach (var contributorId in contributorsIds) {
-                await group.AddUserAsync(contributorId);
+                await group.SetReaderAsync(contributorId);
             }
 
             var businessUnitId = new BusinessUnitId(tenantId);
@@ -67,102 +75,48 @@ public static class Program {
             var businessUnitMembershipId = new MembershipId(businessUnitId);
             var businessUnitMembership = clusterClient.GetGrain<IMembershipGrain>(businessUnitMembershipId.Value);
             var businessUnitMembers = await businessUnitMembership.GetMembersAsync();
+            Assert.Equal(2, businessUnitMembers.Count);
 
-            //            var tenants = Enumerable.Range(0, 100)
-            //                .Select(i => new TenantId())
-            //                .ToDictionary(
-            //                    k => k.Value,
-            //                    v => Enumerable.Range(0, 100)
-            //                            .Select(i => new {
-            //                                UserId = new UserId(),
-            //                                Level = i % 20 == 0 ? AccessLevel.Owner : AccessLevel.Contributor
-            //                            })
-            //                );
+            var tenantDashboardId = new DashboardId(tenantId);
+            var tenantDashboardGrain = clusterClient.GetGrain<IDashboardGrain>(tenantDashboardId.Value);
+            var tenantDashboard = await tenantDashboardGrain.CreateAsync(faker.Commerce.ProductName());
+            await tenantDashboardGrain.SetReaderAsync(readerId);
 
-            //            var sw = new Stopwatch();
-            //            sw.Start();
-            //            var tasks = tenants.SelectMany(tKvp => {
-            //                var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tKvp.Key);
-            //                return tKvp.Value.Select(v => v.Level == AccessLevel.Owner ? tenantGrain.SetOwnerAsync(v.UserId) : tenantGrain.SetContributorAsync(v.UserId));
-            //            }).ToList();
+            var tenantDashboardMembershipId = new MembershipId(tenantDashboardId);
+            var tenantDashboardMembership = clusterClient.GetGrain<IMembershipGrain>(tenantDashboardMembershipId.Value);
+            var tenantDashboardMembers = await tenantDashboardMembership.GetMembersAsync();
+            Assert.Equal(2, tenantDashboardMembers.Count);
 
-            //            //var evenTasks = new Task[100 * 100];
-            //            //for (var k = 0; k < tenants.Keys.Count; k++) {
-            //            //    var client = tenants[tenants.Keys.ElementAt(k)];
-            //            //    for (var i = 0; i < 100; i++) {
-            //            //        evenTasks[k + (i * 100)] = tenantGrain.SetOwnerAsync(new UserId());
-            //            //    }
-            //            //}
+            var businessUnitDashboardId = new DashboardId(businessUnitId);
+            var businessUnitDashboardGrain = clusterClient.GetGrain<IDashboardGrain>(businessUnitDashboardId.Value);
+            var businessUnitDashboard = await businessUnitDashboardGrain.CreateAsync(faker.Commerce.ProductName());
+            await businessUnitDashboardGrain.SetReaderAsync(readerId);
 
-            //            try {
-            //                await Task.WhenAll(tasks);
-            //            } catch (Exception ex) {
-            //                Console.WriteLine(ex.ToString());
-            //#pragma warning disable IDE0120 // Simplifier l'expression LINQ
-            //                var successfull = tasks.Where(t => t.IsCompletedSuccessfully).Count();
-            //                var completed = tasks.Where(t => t.IsCompleted).Count();
-            //                var faulted = tasks.Where(t => t.IsFaulted).Count();
-            //                var canceled = tasks.Where(t => t.IsCanceled).Count();
-            //#pragma warning restore IDE0120 // Simplifier l'expression LINQ
-            //                Console.WriteLine($"{successfull} / {completed} / {faulted} / {canceled}");
-            //            } finally { sw.Stop(); }
+            var businessUnitDashboardMembershipId = new MembershipId(businessUnitDashboardId);
+            var businessUnitDashboardMembership = clusterClient.GetGrain<IMembershipGrain>(businessUnitDashboardMembershipId.Value);
+            var businessUnitDashboardMembers = await businessUnitDashboardMembership.GetMembersAsync();
+            Assert.Equal(3, businessUnitDashboardMembers.Count);
 
-            //            Console.WriteLine(sw.Elapsed.ToString());
+            //var reminderGrain = clusterClient.GetGrain<IReminderGrain>(Guid.Empty);
+            //await reminderGrain.SetReminderAsync("Don't forget to say hello!").ConfigureAwait(false);
 
-            //            var tenants2 = Enumerable.Range(0, 1000)
-            //                .Select(i => new TenantId())
-            //                .ToDictionary(
-            //                    k => k,
-            //                    v => Enumerable.Range(0, 10)
-            //                            .Select(i => new {
-            //                                UserId = new UserId(),
-            //                                Level = i % 9 == 0 ? AccessLevel.Owner : AccessLevel.Contributor
-            //                            })
-            //                );
+            //var streamProvider = clusterClient.GetStreamProvider(StreamProviderName.Default);
+            //var saidHelloStream = streamProvider.GetStream<string>(Guid.Empty, StreamName.SaidHello);
+            //var saidHelloSubscription = await saidHelloStream.SubscribeAsync(OnSaidHelloAsync).ConfigureAwait(false);
+            //var reminderStream = streamProvider.GetStream<string>(Guid.Empty, StreamName.Reminder);
+            //var reminderSubscription = await reminderStream.SubscribeAsync(OnReminderAsync).ConfigureAwait(false);
 
-            //            sw.Reset();
-            //            sw.Start();
-            //            var tasks2 = tenants2.SelectMany(tKvp => {
-            //                var tenantGrain = clusterClient.GetGrain<ITenantGrain>(tKvp.Key.Value);
-            //                return tKvp.Value.Select(v => v.Level == AccessLevel.Owner ? tenantGrain.SetOwnerAsync(v.UserId) : tenantGrain.SetContributorAsync(v.UserId));
-            //            }).ToArray();
-            //            try {
-            //                await Task.WhenAll(tasks2);
-            //            } catch (Exception ex) {
-            //                Console.WriteLine(ex.ToString());
-            //#pragma warning disable IDE0120 // Simplifier l'expression LINQ
-            //                var successfull = tasks2.Where(t => t.IsCompletedSuccessfully).Count();
-            //                var completed = tasks2.Where(t => t.IsCompleted).Count();
-            //                var faulted = tasks2.Where(t => t.IsFaulted).Count();
-            //                var canceled = tasks2.Where(t => t.IsCanceled).Count();
-            //#pragma warning restore IDE0120 // Simplifier l'expression LINQ
-            //                Console.WriteLine($"{successfull} / {completed} / {faulted} / {canceled}");
-            //            } finally { sw.Stop(); }
+            //Console.WriteLine("What is your name?");
+            //var name = Console.ReadLine() ?? "Rehan";
 
-            //            Console.WriteLine(sw.Elapsed.ToString());
+            //var exit = false;
+            //while (!exit) {
+            //    var helloGrain = clusterClient.GetGrain<IHelloGrain>(Guid.NewGuid());
+            //    Console.WriteLine(await helloGrain.SayHelloAsync(name).ConfigureAwait(false));
+            //}
 
-            var reminderGrain = clusterClient.GetGrain<IReminderGrain>(Guid.Empty);
-            await reminderGrain.SetReminderAsync("Don't forget to say hello!").ConfigureAwait(false);
-
-            var streamProvider = clusterClient.GetStreamProvider(StreamProviderName.Default);
-            var saidHelloStream = streamProvider.GetStream<string>(Guid.Empty, StreamName.SaidHello);
-            var saidHelloSubscription = await saidHelloStream.SubscribeAsync(OnSaidHelloAsync).ConfigureAwait(false);
-            var reminderStream = streamProvider.GetStream<string>(Guid.Empty, StreamName.Reminder);
-            var reminderSubscription = await reminderStream.SubscribeAsync(OnReminderAsync).ConfigureAwait(false);
-
-#pragma warning disable CA1303 // Do not pass literals as localized parameters
-            Console.WriteLine("What is your name?");
-#pragma warning restore CA1303 // Do not pass literals as localized parameters
-            var name = Console.ReadLine() ?? "Rehan";
-
-            var exit = false;
-            while (!exit) {
-                var helloGrain = clusterClient.GetGrain<IHelloGrain>(Guid.NewGuid());
-                Console.WriteLine(await helloGrain.SayHelloAsync(name).ConfigureAwait(false));
-            }
-
-            await saidHelloSubscription.UnsubscribeAsync().ConfigureAwait(false);
-            await reminderSubscription.UnsubscribeAsync().ConfigureAwait(false);
+            //await saidHelloSubscription.UnsubscribeAsync().ConfigureAwait(false);
+            //await reminderSubscription.UnsubscribeAsync().ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // Do not catch general exception types
         catch (Exception exception)
@@ -175,15 +129,15 @@ public static class Program {
         return 0;
     }
 
-    private static Task OnSaidHelloAsync(string name, StreamSequenceToken token) {
-        Console.WriteLine($"{name} said hello.");
-        return Task.CompletedTask;
-    }
+    //private static Task OnSaidHelloAsync(string name, StreamSequenceToken token) {
+    //    Console.WriteLine($"{name} said hello.");
+    //    return Task.CompletedTask;
+    //}
 
-    private static Task OnReminderAsync(string reminder, StreamSequenceToken token) {
-        Console.WriteLine(reminder);
-        return Task.CompletedTask;
-    }
+    //private static Task OnReminderAsync(string reminder, StreamSequenceToken token) {
+    //    Console.WriteLine(reminder);
+    //    return Task.CompletedTask;
+    //}
 
     private static IClientBuilder CreateClientBuilder() =>
         new ClientBuilder()

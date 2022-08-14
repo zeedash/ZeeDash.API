@@ -1,9 +1,10 @@
-namespace ZeeDash.API.Grains.Domains.Identity;
+namespace ZeeDash.API.Grains.Domains.Tenants;
 
-using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Orleans;
 using ZeeDash.API.Abstractions.Constants;
+using ZeeDash.API.Abstractions.Domains.Dashboards;
 using ZeeDash.API.Abstractions.Domains.IAM;
 using ZeeDash.API.Abstractions.Domains.Identity;
 using ZeeDash.API.Abstractions.Grains;
@@ -12,9 +13,9 @@ using ZeeDash.API.Grains.Domains.AccessControl;
 using ZeeDash.API.Grains.Domains.AccessControl.Events;
 using ZeeDash.API.Grains.Services;
 
-public partial class GroupGrain
-    : Grain<GroupState>
-    , IGroupGrain
+public class DashboardGrain
+    : Grain<DashboardState>
+    , IDashboardGrain
     , IIncomingGrainCallFilter {
 
     #region Private Fields
@@ -26,7 +27,7 @@ public partial class GroupGrain
 
     #region Ctor.Dtor
 
-    public GroupGrain(
+    public DashboardGrain(
         IAccessControlService accessControlService,
         IMembershipService membershipService) {
         this.accessControlService = accessControlService;
@@ -37,10 +38,9 @@ public partial class GroupGrain
 
     #region Private Methods
 
-    private Group MapStateToGroup() {
-        return new Group {
+    private Dashboard MapStateToTenant() {
+        return new Dashboard {
             Id = this.State.Id,
-            TenantId = this.State.Id.TenantId,
             Name = this.State.Name
         };
     }
@@ -51,7 +51,7 @@ public partial class GroupGrain
 
     async Task IIncomingGrainCallFilter.Invoke(IIncomingGrainCallContext context) {
         var isCreated = !this.State.Id.IsEmpty;
-        if (!string.Equals(context.InterfaceMethod.Name, nameof(IGroupGrain.CreateAsync), StringComparison.Ordinal)) {
+        if (!string.Equals(context.InterfaceMethod.Name, nameof(ITenantGrain.CreateAsync), StringComparison.Ordinal)) {
             if (!isCreated) {
                 throw new UnauthorizedAccessException();
             }
@@ -66,28 +66,27 @@ public partial class GroupGrain
 
     #endregion IIncomingGrainCallFilter
 
-    #region IGroupGrain
+    #region IDashboardGrain
 
     /// <inheritdoc/>
-    async Task<Group> IGroupGrain.CreateAsync(string name) {
+    async Task<Dashboard> IDashboardGrain.CreateAsync(string name) {
         // TODO : Input validation
 
-        this.State.Id = GroupId.Parse(this.GetPrimaryKeyString());
+        this.State.Id = DashboardId.Parse(this.GetPrimaryKeyString());
         this.State.Name = name;
         await this.WriteStateAsync();
 
-        await this.accessControlService.CreateMemberAsync(this.State.Id);
-        await this.accessControlService.AddBelongshipAsync(this.State.Id.TenantId, this.State.Id);
+        await this.accessControlService.CreateDashboardAsync(this.State.Id);
 
-        return this.MapStateToGroup();
+        return this.MapStateToTenant();
     }
 
     /// <inheritdoc/>
-    Task<Group> IGroupGrain.GetAsync() {
-        return Task.FromResult(this.MapStateToGroup());
+    Task<Dashboard> IDashboardGrain.GetAsync() {
+        return Task.FromResult(this.MapStateToTenant());
     }
 
-    #endregion IGroupGrain
+    #endregion IDashboardGrain
 
     #region IGrainMembership<UserId>
 
@@ -132,11 +131,62 @@ public partial class GroupGrain
         await this.accessControlService.AddMembershipAsync(membershipId, userId, level);
 
         await this.GetStreamProvider(StreamProviderName.Membership)
-            .GetStream<OnGroupUpdate>(this.State.Id.AsGuid(), StreamName.Membership.OnGroupUpdate)
-            .OnNextAsync(new OnGroupUpdate(this.State.Id, userId, level));
+            .GetStream<OnDashboardUpdate>(this.State.Id.AsGuid(), StreamName.Membership.OnDashboardUpdate)
+            .OnNextAsync(new OnDashboardUpdate(this.State.Id, userId, level));
 
         return member;
     }
 
     #endregion IGrainMembership<UserId>
+
+    #region IGrainMembership<GroupId>
+
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership<GroupId>.SetContributorAsync(GroupId groupId) {
+        return this.SetMembershipAsync(groupId, AccessLevel.Contributor);
+    }
+
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership<GroupId>.SetOwnerAsync(GroupId groupId) {
+        return this.SetMembershipAsync(groupId, AccessLevel.Owner);
+    }
+
+    /// <inheritdoc/>
+    Task<Member> IGrainMembership<GroupId>.SetReaderAsync(GroupId groupId) {
+        return this.SetMembershipAsync(groupId, AccessLevel.Reader);
+    }
+
+    /// <inheritdoc/>
+    async Task<Member> IGrainMembership<GroupId>.RemoveMemberAsync(GroupId groupId) {
+        var member = this.membershipService.RemoveMember(this.State, groupId);
+
+        var membershipId = new MembershipId(this.State.Id);
+        await this.accessControlService.RemoveMembershipAsync(membershipId, groupId);
+        await this.WriteStateAsync();
+
+        return member;
+    }
+
+    /// <summary>
+    /// Apply membership to a Group on the tenant
+    /// </summary>
+    /// <param name="groupId">The GroupId to manage</param>
+    /// <param name="level">The level of the Group on the tenant</param>
+    /// <returns>The Group as member</returns>
+    private async Task<Member> SetMembershipAsync(GroupId groupId, AccessLevel level) {
+        var membershipId = new MembershipId(this.State.Id);
+
+        var member = this.membershipService.SetMember(this.State, groupId, level);
+        await this.WriteStateAsync();
+
+        await this.accessControlService.AddMembershipAsync(membershipId, groupId, level);
+
+        await this.GetStreamProvider(StreamProviderName.Membership)
+            .GetStream<OnDashboardUpdate>(this.State.Id.AsGuid(), StreamName.Membership.OnDashboardUpdate)
+            .OnNextAsync(new OnDashboardUpdate(this.State.Id, groupId, level));
+
+        return member;
+    }
+
+    #endregion IGrainMembership<GroupId>
 }
