@@ -19,8 +19,8 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup Label="Project References">
-    <ProjectReference Include="..\..\Source\ZeeDash.API.GraphQLServer\ZeeDash.API.GraphQLServer.csproj" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ZeeDash.API.GraphQLServer\ZeeDash.API.GraphQLServer.csproj" />
   </ItemGroup>
 
 </Project>
