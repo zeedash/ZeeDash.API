@@ -26,7 +26,7 @@
   <ItemGroup Label="Package References">
     <PackageReference Include="Boxed.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="3.6.4" />
-    <PackageReference Include="Microsoft.Orleans.Reminders.AdoNet" Version="3.6.4" />
+    <PackageReference Include="Microsoft.Orleans.Reminders.AdoNet" Version="3.6.5" />
     <PackageReference Include="Npgsql" Version="6.0.6" />
     <PackageReference Include="Npgsql.OpenTelemetry" Version="6.0.6" />
     <PackageReference Include="Orleans.Clustering.Redis" Version="3.2.2" />
